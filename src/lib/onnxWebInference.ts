@@ -142,7 +142,10 @@ export function prepareGBRFeatures(historicalValues: number[], targetDate: Date)
 
     // Time features
     const bulan_idx = targetDate.getMonth() + 1; // 1-12
-    const day_of_week = targetDate.getDay(); // 0-6 (Sunday=0)
+    // Python dayofweek: Monday=0, Sunday=6
+    // JS getDay(): Sunday=0, Saturday=6
+    // Convert JS to Python: (getDay() + 6) % 7
+    const day_of_week = (targetDate.getDay() + 6) % 7; // Monday=0, Sunday=6
 
     // Return 9 features in STRICT ORDER matching training
     return [

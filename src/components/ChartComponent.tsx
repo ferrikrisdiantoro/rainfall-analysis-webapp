@@ -39,6 +39,7 @@ interface ChartComponentProps {
     yLabel?: string;
     height?: number;
     type?: 'line' | 'scatter';
+    journalStyle?: boolean; // Academic paper style: border box, minimal internal grid
 }
 
 export default function ChartComponent({
@@ -48,6 +49,7 @@ export default function ChartComponent({
     yLabel = 'Y',
     height = 350,
     type = 'line',
+    journalStyle = true, // Default to journal style
 }: ChartComponentProps) {
     const chartRef = useRef<ChartJS<'line' | 'scatter'>>(null);
 
@@ -64,6 +66,10 @@ export default function ChartComponent({
             typeof point === 'object' && point !== null && 'x' in point && 'y' in point
         )
     );
+
+    // Journal style: minimal grid, strong border
+    const gridColor = journalStyle ? 'rgba(0, 0, 0, 0.05)' : 'rgba(99, 102, 241, 0.08)';
+    const borderColor = journalStyle ? 'rgba(0, 0, 0, 0.8)' : 'rgba(99, 102, 241, 0.2)';
 
     const options: ChartOptions<'line' | 'scatter'> = {
         responsive: true,
@@ -136,7 +142,13 @@ export default function ChartComponent({
                     },
                 },
                 grid: {
-                    color: 'rgba(99, 102, 241, 0.08)',
+                    color: gridColor,
+                    drawOnChartArea: !journalStyle || true, // Still show light grid
+                },
+                border: {
+                    display: journalStyle,
+                    color: borderColor,
+                    width: journalStyle ? 2 : 1,
                 },
                 ticks: {
                     color: '#64748b',
@@ -165,7 +177,13 @@ export default function ChartComponent({
                     },
                 },
                 grid: {
-                    color: 'rgba(99, 102, 241, 0.08)',
+                    color: gridColor,
+                    drawOnChartArea: !journalStyle || true,
+                },
+                border: {
+                    display: journalStyle,
+                    color: borderColor,
+                    width: journalStyle ? 2 : 1,
                 },
                 ticks: {
                     color: '#64748b',
