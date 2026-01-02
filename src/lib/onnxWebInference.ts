@@ -25,7 +25,7 @@ export const MODEL_REGISTRY: Record<ModelType, ModelInfo> = {
     gbr: {
         name: 'model_gbr.onnx',
         displayName: 'Gradient Boosting Regressor',
-        inputShape: [1, 7],
+        inputShape: [1, 9],
         description: 'Tabular ML model with engineered features (lag, rolling stats, month)',
         mae: 6.42,
         rmse: 11.28,
@@ -103,7 +103,7 @@ export async function loadModel(modelType: ModelType): Promise<ort.InferenceSess
 /**
  * Calculate rolling statistics
  */
-function calculateRollingStats(values: number[], windowSize: number): { mean: number; max: number } {
+function calculateRollingStats(values: number[], windowSize: number): { mean: number; max: number; std: number } {
     if (values.length < windowSize) {
         const padded = [...Array(windowSize - values.length).fill(values[0] || 0), ...values];
         values = padded;
@@ -113,11 +113,16 @@ function calculateRollingStats(values: number[], windowSize: number): { mean: nu
     const mean = window.reduce((a, b) => a + b, 0) / windowSize;
     const max = Math.max(...window);
 
-    return { mean, max };
+    // Calculate standard deviation
+    const variance = window.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / windowSize;
+    const std = Math.sqrt(variance);
+
+    return { mean, max, std };
 }
 
 /**
- * Prepare GBR features
+ * Prepare GBR features - 9 features total
+ * Order: [lag_1, lag_3, lag_7, roll_mean_3, roll_mean_7, roll_max_7, roll_std_7, bulan_idx, day_of_week]
  */
 export function prepareGBRFeatures(historicalValues: number[], targetDate: Date): number[] {
     if (historicalValues.length < 7) {
@@ -126,16 +131,31 @@ export function prepareGBRFeatures(historicalValues: number[], targetDate: Date)
 
     const values = historicalValues.slice(-7);
 
+    // Lag features
     const lag_1 = values[values.length - 1];
     const lag_3 = values[values.length - 3] ?? values[0];
     const lag_7 = values[0];
 
+    // Rolling statistics
     const roll3 = calculateRollingStats(values, 3);
     const roll7 = calculateRollingStats(values, 7);
 
-    const bulan_idx = targetDate.getMonth();
+    // Time features
+    const bulan_idx = targetDate.getMonth() + 1; // 1-12
+    const day_of_week = targetDate.getDay(); // 0-6 (Sunday=0)
 
-    return [lag_1, lag_3, lag_7, roll3.mean, roll7.mean, roll7.max, bulan_idx];
+    // Return 9 features in STRICT ORDER matching training
+    return [
+        lag_1,
+        lag_3,
+        lag_7,
+        roll3.mean,
+        roll7.mean,
+        roll7.max,
+        roll7.std,
+        bulan_idx,
+        day_of_week
+    ];
 }
 
 /**
@@ -160,10 +180,10 @@ export async function runInference(
     let inputTensor: ort.Tensor;
 
     if (modelType === 'gbr') {
-        if (features.length !== 7) {
-            throw new Error(`GBR expects 7 features, got ${features.length}`);
+        if (features.length !== 9) {
+            throw new Error(`GBR expects 9 features, got ${features.length}`);
         }
-        inputTensor = new ort.Tensor('float32', new Float32Array(features), [1, 7]);
+        inputTensor = new ort.Tensor('float32', new Float32Array(features), [1, 9]);
     } else {
         if (features.length !== 7) {
             throw new Error(`LSTM expects 7 values, got ${features.length}`);
