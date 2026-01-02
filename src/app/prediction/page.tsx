@@ -4,8 +4,9 @@ import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import CsvUploader from '@/components/CsvUploader';
 import Icon from '@/components/Icon';
-import { TimeSeriesDataPoint, ModelType, MultiModelPredictionResponse } from '@/types';
+import { TimeSeriesDataPoint, ModelType } from '@/types';
 import { exportChartAsPNG, exportTimeSeriesAsCSV } from '@/lib/exportUtils';
+import { forecast, getModelInfo, getAvailableModels } from '@/lib/onnxWebInference';
 
 // Dynamic import for ChartComponent to avoid SSR issues
 const ChartComponent = dynamic(() => import('@/components/ChartComponent'), {
@@ -156,29 +157,27 @@ export default function PredictionPage() {
         setError(null);
 
         try {
-            const response = await fetch('/api/predict', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    model: selectedModel,
-                    horizon: horizon,
-                    historicalData: activeData,
-                }),
-            });
+            // Use client-side ONNX inference (works on Vercel)
+            const predictedValues = await forecast(
+                selectedModel,
+                activeData,
+                horizon,
+                (day, total) => {
+                    // Optional: progress callback
+                    console.log(`[Prediction] Day ${day}/${total}`);
+                }
+            );
 
-            const data = await response.json();
+            // Get model info
+            const modelInfo = getModelInfo(selectedModel);
 
-            if (!response.ok || !data.success) {
-                throw new Error(data.error || data.details || 'Prediction failed');
-            }
-
-            const result = data as MultiModelPredictionResponse;
-            setPredictions(result.predictions);
-            setModelMetrics({ mae: result.model.mae, rmse: result.model.rmse });
-            setUsedModelName(result.model.name);
+            setPredictions(predictedValues);
+            setModelMetrics({ mae: modelInfo.mae, rmse: modelInfo.rmse });
+            setUsedModelName(modelInfo.displayName);
 
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
+            console.error('[Prediction Error]', err);
+            setError(err instanceof Error ? err.message : 'Terjadi kesalahan saat prediksi');
             setPredictions([]);
         } finally {
             setLoading(false);
