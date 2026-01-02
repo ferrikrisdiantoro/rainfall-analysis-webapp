@@ -6,53 +6,61 @@ import CsvUploader from '@/components/CsvUploader';
 import DataTable from '@/components/DataTable';
 import Icon from '@/components/Icon';
 import { DataPoint, RegressionResult } from '@/types';
+import { exportChartAsPNG, exportXYDataAsCSV } from '@/lib/exportUtils';
 
-// Dynamic import for ChartComponent to avoid SSR issues with Chart.js
+// Dynamic import for ChartComponent
 const ChartComponent = dynamic(() => import('@/components/ChartComponent'), {
     ssr: false,
     loading: () => (
-        <div className="chart-container" style={{
+        <div style={{
+            height: '350px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(99, 102, 241, 0.03)',
-            minHeight: '350px'
+            background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
+            borderRadius: '12px',
+            color: 'var(--text-muted)'
         }}>
-            <div style={{ textAlign: 'center' }}>
-                <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
-                <span style={{ color: 'var(--text-muted)' }}>Loading chart...</span>
-            </div>
+            Loading chart...
         </div>
     ),
 });
 
-type RegressionType = 'linear' | 'polynomial' | 'exponential';
+type RegressionType = 'linear' | 'polynomial' | 'exponential' | 'power' | 'logarithmic' | 'moving-average';
 
 export default function RegressionPage() {
-    // Contoh data: Flow (X) vs Water Level (Y) dari sheet Regresi klien
+    // Sample data: Flow (X) vs Water Level (Y)
     const [data, setData] = useState<DataPoint[]>([
-        { x: 33262.03, y: 14.44 },
-        { x: 48285.70, y: 18.16 },
-        { x: 68609.89, y: 21.55 },
-        { x: 86754.77, y: 23.38 },
-        { x: 93855.33, y: 24.00 },
-        { x: 100956.16, y: 24.76 },
-        { x: 113156.71, y: 25.45 },
-        { x: 121846.33, y: 26.31 },
-        { x: 126080.48, y: 27.00 },
-        { x: 133181.13, y: 27.83 },
+        { x: 33262.03, y: 14.44, enabled: true },
+        { x: 48285.70, y: 18.16, enabled: true },
+        { x: 68609.89, y: 21.55, enabled: true },
+        { x: 86754.77, y: 23.38, enabled: true },
+        { x: 93855.33, y: 24.00, enabled: true },
+        { x: 100956.16, y: 24.76, enabled: true },
+        { x: 113156.71, y: 25.45, enabled: true },
+        { x: 121846.33, y: 26.31, enabled: true },
+        { x: 126080.48, y: 27.00, enabled: true },
+        { x: 133181.13, y: 27.83, enabled: true },
     ]);
+
     const [regressionType, setRegressionType] = useState<RegressionType>('linear');
     const [polynomialDegree, setPolynomialDegree] = useState(2);
+    const [movingAvgWindow, setMovingAvgWindow] = useState(3);
     const [result, setResult] = useState<RegressionResult | null>(null);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
+    // Visualization Settings
+    const [chartTitle, setChartTitle] = useState('Scatter Plot dengan Regression Curve');
+    const [xLabel, setXLabel] = useState('X (Flow)');
+    const [yLabel, setYLabel] = useState('Y (Water Level)');
+
     // Perform regression when data or settings change
     const performRegression = useCallback(async () => {
-        if (data.length < 2) {
+        const activeData = data.filter(d => d.enabled !== false);
+
+        if (activeData.length < 2) {
             setResult(null);
-            setError('At least 2 data points are required');
             return;
         }
 
@@ -64,9 +72,9 @@ export default function RegressionPage() {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
-                    data,
+                    data: activeData,
                     type: regressionType,
-                    degree: polynomialDegree,
+                    degree: regressionType === 'moving-average' ? movingAvgWindow : polynomialDegree,
                 }),
             });
 
@@ -78,54 +86,71 @@ export default function RegressionPage() {
 
             setResult(json);
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
+            setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
             setResult(null);
         } finally {
             setLoading(false);
         }
-    }, [data, regressionType, polynomialDegree]);
+    }, [data, regressionType, polynomialDegree, movingAvgWindow]);
 
+    // Auto-run regression when data or settings change
     useEffect(() => {
-        performRegression();
+        const timeout = setTimeout(() => {
+            performRegression();
+        }, 300);
+        return () => clearTimeout(timeout);
     }, [performRegression]);
 
     const handleCsvData = (csvData: { x: number; y: number }[]) => {
-        setData(csvData as DataPoint[]);
+        const mapped = csvData.map(p => ({ x: p.x, y: p.y, enabled: true }));
+        setData(mapped);
     };
 
-    const handleManualAdd = () => {
-        const lastX = data.length > 0 ? data[data.length - 1].x : 0;
-        setData([...data, { x: lastX + 1, y: 0 }]);
+    const handleClearAll = () => {
+        setData([]);
+        setResult(null);
+    };
+
+    const copyFormula = () => {
+        if (result?.formula) {
+            navigator.clipboard.writeText(result.formula);
+        }
+    };
+
+    const handleExportChart = () => {
+        const canvas = document.querySelector('.chart-container canvas') as HTMLCanvasElement;
+        exportChartAsPNG(canvas, 'regression_chart');
+    };
+
+    const handleExportData = () => {
+        exportXYDataAsCSV(data, 'regression_data');
     };
 
     // Prepare chart data
+    const activeData = data.filter(d => d.enabled !== false);
     const chartData = {
         datasets: [
             {
                 type: 'scatter' as const,
                 label: 'Data Points',
-                data: data.map((p) => ({ x: p.x, y: p.y })),
+                data: activeData.map((p) => ({ x: p.x, y: p.y })),
                 backgroundColor: 'rgba(99, 102, 241, 0.9)',
                 borderColor: 'rgba(79, 70, 229, 1)',
-                pointRadius: 8,
-                pointHoverRadius: 12,
-                pointBorderWidth: 2,
-                pointHoverBorderWidth: 3,
+                pointRadius: 6,
+                pointHoverRadius: 8,
             },
             ...(result
-                ? [
-                    {
-                        type: 'line' as const,
-                        label: `${regressionType.charAt(0).toUpperCase() + regressionType.slice(1)} Fit`,
-                        data: data.map((p, i) => ({ x: p.x, y: result.predictions[i] })),
-                        borderColor: 'rgba(139, 92, 246, 1)',
-                        backgroundColor: 'rgba(139, 92, 246, 0.15)',
-                        borderWidth: 3,
-                        fill: true,
-                        tension: regressionType === 'linear' ? 0 : 0.4,
-                        pointRadius: 0,
-                    },
-                ]
+                ? [{
+                    type: 'line' as const,
+                    label: `${regressionType.charAt(0).toUpperCase() + regressionType.slice(1)} Fit`,
+                    data: activeData.map((p, i) => ({ x: p.x, y: result.predictions[i] })),
+                    borderColor: 'rgba(139, 92, 246, 1)',
+                    backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: regressionType === 'linear' ? 0 : 0.4,
+                    pointRadius: 0,
+                }]
                 : []),
         ],
     };
@@ -139,95 +164,197 @@ export default function RegressionPage() {
                         Analisis Regresi
                     </h1>
                     <p className="section-description">
-                        Fitting data dengan model regresi Linear, Polynomial, atau Exponential.
+                        Fitting data dengan model regresi Linear, Polynomial, Exponential, Power, Logarithmic, atau Moving Average.
                     </p>
                 </div>
 
                 <div className="grid-2">
-                    {/* Left Column - Input */}
+                    {/* ========== LEFT COLUMN: DATA INPUT + VISUALIZATION SETTINGS ========== */}
                     <div>
-                        {/* Settings Card */}
+                        {/* 1. DATA INPUT Card */}
                         <div className="card mb-3">
                             <div className="card-header">
-                                <h3 className="card-title">Settings</h3>
+                                <h3 className="card-title">Input Data</h3>
+                                <button
+                                    className="btn btn-danger btn-sm"
+                                    onClick={handleClearAll}
+                                    disabled={data.length === 0}
+                                >
+                                    Clear All
+                                </button>
                             </div>
 
-                            <div className="form-group">
-                                <label className="label">Regression Type</label>
-                                <div className="tabs">
-                                    {(['linear', 'polynomial', 'exponential'] as RegressionType[]).map((type) => (
-                                        <button
-                                            key={type}
-                                            className={`tab ${regressionType === type ? 'active' : ''}`}
-                                            onClick={() => setRegressionType(type)}
-                                        >
-                                            {type.charAt(0).toUpperCase() + type.slice(1)}
-                                        </button>
-                                    ))}
+                            <CsvUploader onDataLoaded={handleCsvData} mode="xy" label="Upload CSV (kolom X, Y)" />
+
+                            <div className="mt-3">
+                                <div className="table-wrapper" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                    <DataTable data={data} onDataChange={setData} editable={true} />
                                 </div>
+                            </div>
+
+                            <button
+                                className="btn btn-secondary mt-2"
+                                onClick={handleExportData}
+                                disabled={data.length === 0}
+                                style={{ width: '100%' }}
+                            >
+                                <Icon name="download" size={16} />
+                                Export Data CSV
+                            </button>
+                        </div>
+
+                        {/* 2. VISUALIZATION SETTINGS Card */}
+                        <div className="card">
+                            <div className="card-header">
+                                <h3 className="card-title">Pengaturan Visualisasi</h3>
+                            </div>
+                            <div className="form-group">
+                                <label className="label">JUDUL GRAFIK</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    value={chartTitle}
+                                    onChange={(e) => setChartTitle(e.target.value)}
+                                    placeholder="Masukkan judul grafik"
+                                    style={{ width: '100%' }}
+                                />
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div className="form-group">
+                                    <label className="label">LABEL SUMBU X</label>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        value={xLabel}
+                                        onChange={(e) => setXLabel(e.target.value)}
+                                        placeholder="X"
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="label">LABEL SUMBU Y</label>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        value={yLabel}
+                                        onChange={(e) => setYLabel(e.target.value)}
+                                        placeholder="Y"
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* ========== RIGHT COLUMN: VISUALIZATION + METHOD + FORMULA + METRICS ========== */}
+                    <div>
+                        {/* 1. VISUALIZATION Card */}
+                        <div className="card mb-3">
+                            <div className="card-header">
+                                <h3 className="card-title">Visualisasi</h3>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={handleExportChart}
+                                    disabled={data.length === 0}
+                                >
+                                    <Icon name="download" size={14} />
+                                    Export PNG
+                                </button>
+                            </div>
+                            <div className="chart-container">
+                                <ChartComponent
+                                    data={chartData}
+                                    title={chartTitle}
+                                    xLabel={xLabel}
+                                    yLabel={yLabel}
+                                    height={350}
+                                />
+                            </div>
+                        </div>
+
+                        {/* 2. REGRESSION METHOD Card */}
+                        <div className="card mb-3">
+                            <div className="card-header">
+                                <h3 className="card-title">Metode Regresi</h3>
+                            </div>
+                            <div className="form-group">
+                                <label className="label">PILIH METODE</label>
+                                <select
+                                    className="select"
+                                    value={regressionType}
+                                    onChange={(e) => setRegressionType(e.target.value as RegressionType)}
+                                    style={{ width: '100%' }}
+                                >
+                                    <option value="linear">Linear (y = a + bx)</option>
+                                    <option value="polynomial">Polynomial (Order n)</option>
+                                    <option value="exponential">Exponential (y = ae^bx)</option>
+                                    <option value="power">Power (y = ax^b)</option>
+                                    <option value="logarithmic">Logarithmic (y = a + b ln x)</option>
+                                    <option value="moving-average">Moving Average</option>
+                                </select>
                             </div>
 
                             {regressionType === 'polynomial' && (
                                 <div className="form-group">
-                                    <label className="label">Polynomial Degree</label>
+                                    <label className="label">POLYNOMIAL DEGREE</label>
                                     <select
                                         className="select"
                                         value={polynomialDegree}
                                         onChange={(e) => setPolynomialDegree(parseInt(e.target.value))}
+                                        style={{ width: '100%' }}
                                     >
                                         {[2, 3, 4, 5, 6].map((d) => (
-                                            <option key={d} value={d}>
-                                                Degree {d}
-                                            </option>
+                                            <option key={d} value={d}>Degree {d}</option>
+                                        ))}
+                                    </select>
+                                </div>
+                            )}
+
+                            {regressionType === 'moving-average' && (
+                                <div className="form-group">
+                                    <label className="label">WINDOW SIZE</label>
+                                    <select
+                                        className="select"
+                                        value={movingAvgWindow}
+                                        onChange={(e) => setMovingAvgWindow(parseInt(e.target.value))}
+                                        style={{ width: '100%' }}
+                                    >
+                                        {[2, 3, 5, 7, 10].map((w) => (
+                                            <option key={w} value={w}>{w} points</option>
                                         ))}
                                     </select>
                                 </div>
                             )}
                         </div>
 
-                        {/* Data Input Card */}
-                        <div className="card mb-3">
-                            <div className="card-header">
-                                <h3 className="card-title">Data Input</h3>
-                                <button className="btn btn-secondary btn-sm" onClick={handleManualAdd}>
-                                    + Add Point
-                                </button>
+                        {/* 3. REGRESSION FORMULA Card */}
+                        {result && (
+                            <div className="card mb-3">
+                                <div className="card-header">
+                                    <h3 className="card-title">Formula Regresi</h3>
+                                    <button
+                                        className="btn btn-secondary btn-sm"
+                                        onClick={copyFormula}
+                                    >
+                                        <Icon name="copy" size={14} />
+                                        Copy
+                                    </button>
+                                </div>
+                                <div className="formula-display">
+                                    {result.formula}
+                                </div>
                             </div>
+                        )}
 
-                            <CsvUploader onDataLoaded={handleCsvData} mode="xy" label="Upload CSV" />
-
-                            <div className="mt-3">
-                                <DataTable data={data} onDataChange={setData} editable={true} />
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* Right Column - Results */}
-                    <div>
-                        {/* Formula Card */}
-                        <div className="card mb-3">
-                            <div className="card-header">
-                                <h3 className="card-title">Regression Formula</h3>
-                                {loading && <span className="loading"><span className="spinner"></span></span>}
-                            </div>
-
-                            {error && <div className="alert alert-error">{error}</div>}
-
-                            {result && (
-                                <div className="formula-display">{result.formula}</div>
-                            )}
-                        </div>
-
-                        {/* Metrics Card */}
-                        <div className="card mb-3">
-                            <div className="card-header">
-                                <h3 className="card-title">Accuracy Metrics</h3>
-                            </div>
-
-                            {result ? (
+                        {/* 4. ACCURACY METRICS Card */}
+                        {result && (
+                            <div className="card">
+                                <div className="card-header">
+                                    <h3 className="card-title">Metrik Akurasi</h3>
+                                </div>
                                 <div className="metrics-grid">
                                     <div className="metric-card">
-                                        <div className="metric-label">R²</div>
+                                        <div className="metric-label">R² (Coeff. Det.)</div>
                                         <div className="metric-value">{result.r2.toFixed(4)}</div>
                                     </div>
                                     <div className="metric-card">
@@ -239,24 +366,29 @@ export default function RegressionPage() {
                                         <div className="metric-value">{result.rmse.toFixed(4)}</div>
                                     </div>
                                 </div>
-                            ) : (
-                                <p style={{ color: 'var(--text-muted)' }}>Add data to see metrics</p>
-                            )}
-                        </div>
-
-                        {/* Chart Card */}
-                        <div className="card">
-                            <div className="card-header">
-                                <h3 className="card-title">Visualization</h3>
+                                <p style={{
+                                    marginTop: '12px',
+                                    fontSize: '0.85rem',
+                                    color: 'var(--text-muted)'
+                                }}>
+                                    Dihitung dari {activeData.length} data point aktif.
+                                </p>
                             </div>
-                            <ChartComponent
-                                data={chartData}
-                                title="Scatter Plot with Regression Curve"
-                                xLabel="X"
-                                yLabel="Y"
-                                height={400}
-                            />
-                        </div>
+                        )}
+
+                        {/* Error Display */}
+                        {error && (
+                            <div className="alert alert-error mt-3">
+                                {error}
+                            </div>
+                        )}
+
+                        {/* Loading State */}
+                        {loading && (
+                            <div className="alert alert-info mt-3">
+                                <Icon name="spinner" size={16} className="spin" /> Menghitung regresi...
+                            </div>
+                        )}
                     </div>
                 </div>
             </div>

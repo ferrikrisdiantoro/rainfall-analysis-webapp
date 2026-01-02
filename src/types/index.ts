@@ -3,6 +3,7 @@
 export interface DataPoint {
   x: number;
   y: number;
+  enabled?: boolean;
 }
 
 export interface TimeSeriesDataPoint {
@@ -11,7 +12,7 @@ export interface TimeSeriesDataPoint {
 }
 
 export interface RegressionResult {
-  type: 'linear' | 'polynomial' | 'exponential';
+  type: 'linear' | 'polynomial' | 'exponential' | 'power' | 'logarithmic' | 'moving-average';
   formula: string;
   coefficients: number[];
   r2: number;
@@ -20,9 +21,39 @@ export interface RegressionResult {
   predictions: number[];
 }
 
+// Model types for prediction
+export type ModelType = 'gbr' | 'lstm' | 'bilstm';
+
+// Model metadata info
+export interface ModelInfo {
+  type: ModelType;
+  name: string;
+  description: string;
+  mae: number;
+  rmse: number;
+}
+
 export interface PredictionResult {
   prediction: number;
   features: number[];
+}
+
+// Multi-model prediction response
+export interface MultiModelPredictionResponse {
+  success: true;
+  model: {
+    type: ModelType;
+    name: string;
+    mae: number;
+    rmse: number;
+  };
+  horizon: number;
+  predictions: TimeSeriesDataPoint[];
+  historicalSummary: {
+    count: number;
+    startDate: string;
+    endDate: string;
+  };
 }
 
 export interface TimeSeriesPredictionResult {
@@ -35,6 +66,8 @@ export interface TimeSeriesPredictionResult {
 }
 
 export interface ApiError {
+  success?: false;
   error: string;
   details?: string;
 }
+

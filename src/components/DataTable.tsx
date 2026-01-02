@@ -1,7 +1,6 @@
 'use client';
 
 import { DataPoint } from '@/types';
-import Icon from './Icon';
 
 interface DataTableProps {
     data: DataPoint[];
@@ -19,14 +18,21 @@ export default function DataTable({ data, onDataChange, editable = true }: DataT
         }
     };
 
-    const handleAddRow = () => {
-        const lastX = data.length > 0 ? data[data.length - 1].x : 0;
-        onDataChange([...data, { x: lastX + 1, y: 0 }]);
+    const handleToggle = (index: number) => {
+        const newData = [...data];
+        newData[index] = { ...newData[index], enabled: !newData[index].enabled };
+        onDataChange(newData);
     };
 
-    const handleRemoveRow = (index: number) => {
-        onDataChange(data.filter((_, i) => i !== index));
+    const handleAddRow = () => {
+        const lastX = data.length > 0 ? data[data.length - 1].x : 0;
+        onDataChange([...data, { x: lastX + 1, y: 0, enabled: true }]);
     };
+
+    // Removed handleRemoveRow as per requirement to rely on enabling/disabling
+    // But keep logic if we want a manual delete for empty rows? 
+    // PDF says "Data bukan dihapus... tapi hanya di add/remove dari grafik... ganti action delete menjadi checkbox".
+    // So "Delete" is GONE. Checkbox IS the action.
 
     return (
         <div>
@@ -35,9 +41,9 @@ export default function DataTable({ data, onDataChange, editable = true }: DataT
                     <thead>
                         <tr>
                             <th style={{ width: '50px' }}>#</th>
+                            {editable && <th style={{ width: '60px' }}>Active</th>}
                             <th>X</th>
                             <th>Y</th>
-                            {editable && <th style={{ width: '80px' }}>Action</th>}
                         </tr>
                     </thead>
                     <tbody>
@@ -49,8 +55,18 @@ export default function DataTable({ data, onDataChange, editable = true }: DataT
                             </tr>
                         ) : (
                             data.map((point, index) => (
-                                <tr key={index}>
+                                <tr key={index} style={{ opacity: point.enabled === false ? 0.5 : 1 }}>
                                     <td style={{ color: 'var(--text-muted)' }}>{index + 1}</td>
+                                    {editable && (
+                                        <td>
+                                            <input
+                                                type="checkbox"
+                                                checked={point.enabled !== false}
+                                                onChange={() => handleToggle(index)}
+                                                style={{ cursor: 'pointer', width: '18px', height: '18px' }}
+                                            />
+                                        </td>
+                                    )}
                                     <td>
                                         {editable ? (
                                             <input
@@ -59,6 +75,7 @@ export default function DataTable({ data, onDataChange, editable = true }: DataT
                                                 value={point.x}
                                                 onChange={(e) => handleCellChange(index, 'x', e.target.value)}
                                                 step="any"
+                                                disabled={point.enabled === false}
                                             />
                                         ) : (
                                             point.x.toFixed(4)
@@ -72,22 +89,12 @@ export default function DataTable({ data, onDataChange, editable = true }: DataT
                                                 value={point.y}
                                                 onChange={(e) => handleCellChange(index, 'y', e.target.value)}
                                                 step="any"
+                                                disabled={point.enabled === false}
                                             />
                                         ) : (
                                             point.y.toFixed(4)
                                         )}
                                     </td>
-                                    {editable && (
-                                        <td>
-                                            <button
-                                                className="btn btn-danger btn-sm btn-icon"
-                                                onClick={() => handleRemoveRow(index)}
-                                                title="Remove"
-                                            >
-                                                <Icon name="x" size={16} />
-                                            </button>
-                                        </td>
-                                    )}
                                 </tr>
                             ))
                         )}
@@ -95,10 +102,12 @@ export default function DataTable({ data, onDataChange, editable = true }: DataT
                 </table>
             </div>
             {editable && (
-                <button className="btn btn-secondary btn-sm mt-2" onClick={handleAddRow}>
-                    <Icon name="plus" size={16} />
-                    Add Row
-                </button>
+                <div className="flex justify-between mt-2">
+                    <button className="btn btn-secondary btn-sm" onClick={handleAddRow}>
+                        + Row
+                    </button>
+                    {/* Clear All will be handled by parent */}
+                </div>
             )}
         </div>
     );

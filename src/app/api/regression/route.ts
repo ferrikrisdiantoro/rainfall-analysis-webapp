@@ -79,7 +79,7 @@ export async function POST(request: NextRequest): Promise<NextResponse<Regressio
         }
 
         // Validate regression type
-        const validTypes = ['linear', 'polynomial', 'exponential'];
+        const validTypes = ['linear', 'polynomial', 'exponential', 'power', 'logarithmic', 'moving-average'];
         if (!validTypes.includes(type)) {
             return NextResponse.json(
                 { error: `Invalid regression type. Must be one of: ${validTypes.join(', ')}` },

@@ -239,11 +239,141 @@ export function exponentialRegression(data: DataPoint[]): RegressionResult {
 }
 
 /**
+ * Power Regression: y = a * x^b
+ * Uses linearization: ln(y) = ln(a) + b * ln(x)
+ */
+export function powerRegression(data: DataPoint[]): RegressionResult {
+    const n = data.length;
+    if (n < 2) {
+        throw new Error('At least 2 data points are required for regression');
+    }
+
+    // Filter out non-positive values (can't take log of zero or negative)
+    const filteredData = data.filter(d => d.x > 0 && d.y > 0);
+    if (filteredData.length < 2) {
+        throw new Error('At least 2 data points with positive x and y values are required for power regression');
+    }
+
+    const lnXValues = filteredData.map(d => Math.log(d.x));
+    const lnYValues = filteredData.map(d => Math.log(d.y));
+
+    const lnXMean = mean(lnXValues);
+    const lnYMean = mean(lnYValues);
+
+    let numerator = 0;
+    let denominator = 0;
+
+    for (let i = 0; i < filteredData.length; i++) {
+        numerator += (lnXValues[i] - lnXMean) * (lnYValues[i] - lnYMean);
+        denominator += Math.pow(lnXValues[i] - lnXMean, 2);
+    }
+
+    const b = numerator / denominator;
+    const lnA = lnYMean - b * lnXMean;
+    const a = Math.exp(lnA);
+
+    // Calculate predictions
+    const predictions = data.map(d => a * Math.pow(d.x, b));
+    const yValues = data.map(d => d.y);
+
+    return {
+        type: 'power',
+        formula: `y = ${a.toFixed(4)}x^${b.toFixed(4)}`,
+        coefficients: [a, b],
+        r2: calculateR2(yValues, predictions),
+        mae: calculateMAE(yValues, predictions),
+        rmse: calculateRMSE(yValues, predictions),
+        predictions
+    };
+}
+
+/**
+ * Logarithmic Regression: y = a + b * ln(x)
+ */
+export function logarithmicRegression(data: DataPoint[]): RegressionResult {
+    const n = data.length;
+    if (n < 2) {
+        throw new Error('At least 2 data points are required for regression');
+    }
+
+    // Filter out non-positive x values
+    const filteredData = data.filter(d => d.x > 0);
+    if (filteredData.length < 2) {
+        throw new Error('At least 2 data points with positive x values are required for logarithmic regression');
+    }
+
+    const lnXValues = filteredData.map(d => Math.log(d.x));
+    const yValuesFiltered = filteredData.map(d => d.y);
+
+    const lnXMean = mean(lnXValues);
+    const yMean = mean(yValuesFiltered);
+
+    let numerator = 0;
+    let denominator = 0;
+
+    for (let i = 0; i < filteredData.length; i++) {
+        numerator += (lnXValues[i] - lnXMean) * (yValuesFiltered[i] - yMean);
+        denominator += Math.pow(lnXValues[i] - lnXMean, 2);
+    }
+
+    const b = numerator / denominator;
+    const a = yMean - b * lnXMean;
+
+    // Calculate predictions
+    const predictions = data.map(d => d.x > 0 ? a + b * Math.log(d.x) : 0);
+    const allYValues = data.map(d => d.y);
+
+    return {
+        type: 'logarithmic',
+        formula: `y = ${a.toFixed(4)} + ${b.toFixed(4)}ln(x)`,
+        coefficients: [a, b],
+        r2: calculateR2(allYValues, predictions),
+        mae: calculateMAE(allYValues, predictions),
+        rmse: calculateRMSE(allYValues, predictions),
+        predictions
+    };
+}
+
+/**
+ * Moving Average
+ */
+export function movingAverageRegression(data: DataPoint[], windowSize: number = 3): RegressionResult {
+    const n = data.length;
+    if (n < windowSize) {
+        throw new Error(`At least ${windowSize} data points are required for moving average`);
+    }
+
+    const yValues = data.map(d => d.y);
+    const predictions: number[] = [];
+
+    for (let i = 0; i < n; i++) {
+        if (i < windowSize - 1) {
+            // Not enough data for full window, use average of available so far (expanding mean)
+            const available = yValues.slice(0, i + 1);
+            predictions.push(mean(available));
+        } else {
+            const window = yValues.slice(i - windowSize + 1, i + 1);
+            predictions.push(mean(window));
+        }
+    }
+
+    return {
+        type: 'moving-average',
+        formula: `Moving Average (n=${windowSize})`,
+        coefficients: [windowSize],
+        r2: calculateR2(yValues, predictions),
+        mae: calculateMAE(yValues, predictions),
+        rmse: calculateRMSE(yValues, predictions),
+        predictions
+    };
+}
+
+/**
  * Perform regression based on the specified type
  */
 export function performRegression(
     data: DataPoint[],
-    type: 'linear' | 'polynomial' | 'exponential',
+    type: 'linear' | 'polynomial' | 'exponential' | 'power' | 'logarithmic' | 'moving-average',
     degree?: number
 ): RegressionResult {
     switch (type) {
@@ -253,6 +383,12 @@ export function performRegression(
             return polynomialRegression(data, degree || 2);
         case 'exponential':
             return exponentialRegression(data);
+        case 'power':
+            return powerRegression(data);
+        case 'logarithmic':
+            return logarithmicRegression(data);
+        case 'moving-average':
+            return movingAverageRegression(data, degree || 3); // Reuse degree as window size for simplicity
         default:
             throw new Error(`Unknown regression type: ${type}`);
     }

@@ -4,93 +4,113 @@ import { useState, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import CsvUploader from '@/components/CsvUploader';
 import Icon from '@/components/Icon';
-import { TimeSeriesDataPoint } from '@/types';
+import { TimeSeriesDataPoint, ModelType, MultiModelPredictionResponse } from '@/types';
+import { exportChartAsPNG, exportTimeSeriesAsCSV } from '@/lib/exportUtils';
 
 // Dynamic import for ChartComponent to avoid SSR issues
 const ChartComponent = dynamic(() => import('@/components/ChartComponent'), {
     ssr: false,
     loading: () => (
-        <div className="chart-container" style={{
+        <div style={{
+            height: '350px',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            background: 'rgba(99, 102, 241, 0.03)',
-            minHeight: '350px'
+            background: 'linear-gradient(135deg, #f8fafc 0%, #eef2ff 100%)',
+            borderRadius: '12px',
+            color: 'var(--text-muted)'
         }}>
-            <div style={{ textAlign: 'center' }}>
-                <div className="spinner" style={{ margin: '0 auto 12px' }}></div>
-                <span style={{ color: 'var(--text-muted)' }}>Loading chart...</span>
-            </div>
+            Loading chart...
         </div>
     ),
 });
 
-interface PredictionMetrics {
-    mae: number;
-    rmse: number;
-    mape: number;
+// Model options with display info
+const MODEL_OPTIONS: { value: ModelType; label: string; description: string }[] = [
+    { value: 'gbr', label: 'Gradient Boosting', description: 'Tabular ML dengan fitur lag & rolling stats' },
+    { value: 'lstm', label: 'LSTM', description: 'Deep Learning sequence model' },
+    { value: 'bilstm', label: 'BiLSTM', description: 'Bidirectional LSTM untuk pola kompleks' },
+];
+
+// Extended data point with enabled toggle
+interface ToggleableDataPoint extends TimeSeriesDataPoint {
+    enabled: boolean;
 }
 
 export default function PredictionPage() {
-    // Dummy data: 30 hari curah hujan (mm) untuk demo visualisasi
-    const [historicalData, setHistoricalData] = useState<TimeSeriesDataPoint[]>([
-        { date: '2024-11-01', value: 12.5 },
-        { date: '2024-11-02', value: 8.3 },
-        { date: '2024-11-03', value: 0 },
-        { date: '2024-11-04', value: 2.1 },
-        { date: '2024-11-05', value: 15.7 },
-        { date: '2024-11-06', value: 22.4 },
-        { date: '2024-11-07', value: 18.9 },
-        { date: '2024-11-08', value: 5.6 },
-        { date: '2024-11-09', value: 0 },
-        { date: '2024-11-10', value: 3.2 },
-        { date: '2024-11-11', value: 9.8 },
-        { date: '2024-11-12', value: 14.3 },
-        { date: '2024-11-13', value: 28.6 },
-        { date: '2024-11-14', value: 35.2 },
-        { date: '2024-11-15', value: 19.7 },
-        { date: '2024-11-16', value: 7.4 },
-        { date: '2024-11-17', value: 0 },
-        { date: '2024-11-18', value: 1.5 },
-        { date: '2024-11-19', value: 11.2 },
-        { date: '2024-11-20', value: 24.8 },
-        { date: '2024-11-21', value: 31.5 },
-        { date: '2024-11-22', value: 16.9 },
-        { date: '2024-11-23', value: 8.7 },
-        { date: '2024-11-24', value: 4.3 },
-        { date: '2024-11-25', value: 0 },
-        { date: '2024-11-26', value: 6.1 },
-        { date: '2024-11-27', value: 13.4 },
-        { date: '2024-11-28', value: 21.7 },
-        { date: '2024-11-29', value: 17.3 },
-        { date: '2024-11-30', value: 9.8 },
+    // Sample data: 30 hari curah hujan (mm)
+    const [historicalData, setHistoricalData] = useState<ToggleableDataPoint[]>([
+        { date: '2024-11-01', value: 12.5, enabled: true },
+        { date: '2024-11-02', value: 8.3, enabled: true },
+        { date: '2024-11-03', value: 0, enabled: true },
+        { date: '2024-11-04', value: 2.1, enabled: true },
+        { date: '2024-11-05', value: 15.7, enabled: true },
+        { date: '2024-11-06', value: 22.4, enabled: true },
+        { date: '2024-11-07', value: 18.9, enabled: true },
+        { date: '2024-11-08', value: 5.6, enabled: true },
+        { date: '2024-11-09', value: 0, enabled: true },
+        { date: '2024-11-10', value: 3.2, enabled: true },
+        { date: '2024-11-11', value: 9.8, enabled: true },
+        { date: '2024-11-12', value: 14.3, enabled: true },
+        { date: '2024-11-13', value: 28.6, enabled: true },
+        { date: '2024-11-14', value: 35.2, enabled: true },
+        { date: '2024-11-15', value: 19.7, enabled: true },
+        { date: '2024-11-16', value: 7.4, enabled: true },
+        { date: '2024-11-17', value: 0, enabled: true },
+        { date: '2024-11-18', value: 1.5, enabled: true },
+        { date: '2024-11-19', value: 11.2, enabled: true },
+        { date: '2024-11-20', value: 24.8, enabled: true },
+        { date: '2024-11-21', value: 31.5, enabled: true },
+        { date: '2024-11-22', value: 16.9, enabled: true },
+        { date: '2024-11-23', value: 8.7, enabled: true },
+        { date: '2024-11-24', value: 4.3, enabled: true },
+        { date: '2024-11-25', value: 0, enabled: true },
+        { date: '2024-11-26', value: 6.1, enabled: true },
+        { date: '2024-11-27', value: 13.4, enabled: true },
+        { date: '2024-11-28', value: 21.7, enabled: true },
+        { date: '2024-11-29', value: 17.3, enabled: true },
+        { date: '2024-11-30', value: 9.8, enabled: true },
     ]);
+
     const [predictions, setPredictions] = useState<TimeSeriesDataPoint[]>([]);
+    const [selectedModel, setSelectedModel] = useState<ModelType>('gbr');
     const [horizon, setHorizon] = useState(7);
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
-    const [metrics, setMetrics] = useState<PredictionMetrics | null>(null);
+    const [modelMetrics, setModelMetrics] = useState<{ mae: number; rmse: number } | null>(null);
+    const [usedModelName, setUsedModelName] = useState<string>('');
+
+    // Visualization Settings
+    const [chartTitle, setChartTitle] = useState('Data Historis & Prediksi Curah Hujan');
+    const [xLabel, setXLabel] = useState('Tanggal');
+    const [yLabel, setYLabel] = useState('Curah Hujan (mm)');
 
     // Manual data input
     const [manualDate, setManualDate] = useState('');
     const [manualValue, setManualValue] = useState('');
 
     const handleCsvData = (csvData: { date: string; value: number }[]) => {
-        // Sort by date
         const sorted = [...csvData].sort((a, b) =>
             new Date(a.date).getTime() - new Date(b.date).getTime()
         );
-        setHistoricalData(sorted as TimeSeriesDataPoint[]);
+        setHistoricalData(sorted.map(d => ({ ...d, enabled: true })));
         setPredictions([]);
-        setMetrics(null);
+        setError(null);
     };
 
     const handleManualAdd = () => {
-        if (!manualDate || manualValue === '') return;
+        if (!manualDate || !manualValue) {
+            setError('Masukkan tanggal dan nilai');
+            return;
+        }
 
-        const value = Math.max(0, parseFloat(manualValue) || 0);
-        const newPoint: TimeSeriesDataPoint = { date: manualDate, value };
+        const value = parseFloat(manualValue);
+        if (isNaN(value) || value < 0) {
+            setError('Nilai harus angka non-negatif');
+            return;
+        }
 
+        const newPoint: ToggleableDataPoint = { date: manualDate, value, enabled: true };
         const newData = [...historicalData, newPoint].sort((a, b) =>
             new Date(a.date).getTime() - new Date(b.date).getTime()
         );
@@ -98,19 +118,37 @@ export default function PredictionPage() {
         setHistoricalData(newData);
         setManualDate('');
         setManualValue('');
-        setPredictions([]);
-        setMetrics(null);
+        setError(null);
     };
 
-    const handleRemovePoint = (index: number) => {
-        setHistoricalData(historicalData.filter((_, i) => i !== index));
+    const handleTogglePoint = (index: number) => {
+        const newData = [...historicalData];
+        newData[index] = { ...newData[index], enabled: !newData[index].enabled };
+        setHistoricalData(newData);
+    };
+
+    const handleClearAll = () => {
+        setHistoricalData([]);
         setPredictions([]);
-        setMetrics(null);
+        setModelMetrics(null);
+        setUsedModelName('');
+    };
+
+    const handleExportChart = () => {
+        const canvas = document.querySelector('.chart-container canvas') as HTMLCanvasElement;
+        exportChartAsPNG(canvas, 'prediction_chart');
+    };
+
+    const handleExportData = () => {
+        const activeHistorical = historicalData.filter(d => d.enabled);
+        exportTimeSeriesAsCSV(activeHistorical, predictions, 'prediction_data');
     };
 
     const runPrediction = useCallback(async () => {
-        if (historicalData.length < 7) {
-            setError('At least 7 data points are required for prediction (for lag features)');
+        const activeData = historicalData.filter(d => d.enabled);
+
+        if (activeData.length < 7) {
+            setError('Minimal 7 data historis aktif diperlukan');
             return;
         }
 
@@ -118,145 +156,70 @@ export default function PredictionPage() {
         setError(null);
 
         try {
-            const newPredictions: TimeSeriesDataPoint[] = [];
-            let currentData = [...historicalData];
+            const response = await fetch('/api/predict', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    model: selectedModel,
+                    horizon: horizon,
+                    historicalData: activeData,
+                }),
+            });
 
-            for (let i = 0; i < horizon; i++) {
-                // Get last 7 values for lag features
-                const lagFeatures = currentData.slice(-7).map((d) => d.value).reverse();
+            const data = await response.json();
 
-                // Call prediction API
-                const response = await fetch('/api/predict', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ features: lagFeatures }),
-                });
-
-                const json = await response.json();
-
-                if (!response.ok) {
-                    throw new Error(json.error || 'Prediction failed');
-                }
-
-                // Calculate next date
-                const lastDate = new Date(currentData[currentData.length - 1].date);
-                lastDate.setDate(lastDate.getDate() + 1);
-                const nextDateStr = lastDate.toISOString().split('T')[0];
-
-                const predictionValue = Math.max(0, json.prediction);
-                const newPoint: TimeSeriesDataPoint = {
-                    date: nextDateStr,
-                    value: predictionValue,
-                };
-
-                newPredictions.push(newPoint);
-                currentData.push(newPoint);
+            if (!response.ok || !data.success) {
+                throw new Error(data.error || data.details || 'Prediction failed');
             }
 
-            setPredictions(newPredictions);
+            const result = data as MultiModelPredictionResponse;
+            setPredictions(result.predictions);
+            setModelMetrics({ mae: result.model.mae, rmse: result.model.rmse });
+            setUsedModelName(result.model.name);
 
-            // Calculate metrics using the last available actual data as a reference
-            // This is a simplified validation - in production you'd use a test set
-            if (historicalData.length >= 14) {
-                const testData = historicalData.slice(-7);
-                const trainData = historicalData.slice(0, -7);
-
-                // Make predictions on test data
-                const testPredictions: number[] = [];
-                let tempData = [...trainData];
-
-                for (let i = 0; i < 7; i++) {
-                    const lagFeatures = tempData.slice(-7).map((d) => d.value).reverse();
-
-                    const response = await fetch('/api/predict', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ features: lagFeatures }),
-                    });
-
-                    const json = await response.json();
-                    if (response.ok) {
-                        const predVal = Math.max(0, json.prediction);
-                        testPredictions.push(predVal);
-                        tempData.push({ date: testData[i].date, value: predVal });
-                    }
-                }
-
-                // Calculate metrics
-                if (testPredictions.length === 7) {
-                    const actualValues = testData.map((d) => d.value);
-
-                    let maeSum = 0;
-                    let rmseSum = 0;
-                    let mapeSum = 0;
-                    let mapeCount = 0;
-
-                    for (let i = 0; i < 7; i++) {
-                        const actual = actualValues[i];
-                        const predicted = testPredictions[i];
-
-                        maeSum += Math.abs(actual - predicted);
-                        rmseSum += Math.pow(actual - predicted, 2);
-
-                        if (actual !== 0) {
-                            mapeSum += Math.abs((actual - predicted) / actual);
-                            mapeCount++;
-                        }
-                    }
-
-                    setMetrics({
-                        mae: maeSum / 7,
-                        rmse: Math.sqrt(rmseSum / 7),
-                        mape: mapeCount > 0 ? (mapeSum / mapeCount) * 100 : 0,
-                    });
-                }
-            }
         } catch (err) {
-            setError(err instanceof Error ? err.message : 'An error occurred');
+            setError(err instanceof Error ? err.message : 'Terjadi kesalahan');
             setPredictions([]);
         } finally {
             setLoading(false);
         }
-    }, [historicalData, horizon]);
+    }, [historicalData, selectedModel, horizon]);
 
-    // Prepare chart data
+    // Prepare chart data - only active data
+    const activeHistorical = historicalData.filter(d => d.enabled);
     const chartData = {
         labels: [
-            ...historicalData.map((d) => d.date),
-            ...predictions.map((d) => d.date),
+            ...activeHistorical.map(d => d.date),
+            ...predictions.map(d => d.date),
         ],
         datasets: [
             {
-                label: 'Historical Data',
+                label: 'Data Historis',
                 data: [
-                    ...historicalData.map((d) => d.value),
-                    ...new Array(predictions.length).fill(null),
+                    ...activeHistorical.map(d => d.value),
+                    ...predictions.map(() => null),
                 ],
                 borderColor: 'rgba(99, 102, 241, 1)',
                 backgroundColor: 'rgba(99, 102, 241, 0.1)',
                 fill: true,
-                tension: 0.4,
-                pointRadius: 4,
-                pointHoverRadius: 7,
+                tension: 0.3,
+                pointRadius: 3,
                 pointBackgroundColor: 'rgba(99, 102, 241, 1)',
                 pointBorderColor: '#fff',
                 pointBorderWidth: 2,
-                borderWidth: 3,
             },
             {
-                label: 'Predictions',
+                label: 'Prediksi',
                 data: [
-                    ...new Array(Math.max(0, historicalData.length - 1)).fill(null),
-                    historicalData.length > 0 ? historicalData[historicalData.length - 1].value : null,
-                    ...predictions.map((d) => d.value),
+                    ...activeHistorical.map(() => null),
+                    ...predictions.map(d => d.value),
                 ],
                 borderColor: 'rgba(139, 92, 246, 1)',
                 backgroundColor: 'rgba(139, 92, 246, 0.1)',
                 fill: true,
-                borderDash: [8, 4],
-                tension: 0.4,
+                borderDash: [5, 5],
+                tension: 0.3,
                 pointRadius: 5,
-                pointHoverRadius: 8,
                 pointBackgroundColor: 'rgba(139, 92, 246, 1)',
                 pointBorderColor: '#fff',
                 pointBorderWidth: 2,
@@ -274,207 +237,307 @@ export default function PredictionPage() {
                         Prediksi Curah Hujan
                     </h1>
                     <p className="section-description">
-                        Prediksi curah hujan ke depan menggunakan model ML (Gradient Boosting) dengan ONNX Runtime.
+                        Prediksi curah hujan 1-30 hari ke depan menggunakan model Machine Learning (GBR, LSTM, BiLSTM).
                     </p>
                 </div>
 
                 <div className="grid-2">
-                    {/* Left Column - Input */}
+                    {/* ========== LEFT COLUMN: DATA INPUT + VISUALIZATION SETTINGS ========== */}
                     <div>
-                        {/* Settings Card */}
+                        {/* 1. DATA INPUT Card */}
                         <div className="card mb-3">
                             <div className="card-header">
-                                <h3 className="card-title">Pengaturan Prediksi</h3>
-                            </div>
-
-                            <div className="form-group">
-                                <label className="label">Prediction Horizon (Days)</label>
-                                <input
-                                    type="range"
-                                    min="1"
-                                    max="30"
-                                    value={horizon}
-                                    onChange={(e) => setHorizon(parseInt(e.target.value))}
-                                    className="input"
-                                    style={{ cursor: 'pointer' }}
-                                />
-                                <div className="flex justify-between mt-1" style={{ color: 'var(--text-muted)', fontSize: '0.875rem' }}>
-                                    <span>1 day</span>
-                                    <span><strong style={{ color: 'var(--accent-blue)' }}>{horizon} days</strong></span>
-                                    <span>30 days</span>
-                                </div>
-                            </div>
-
-                            <button
-                                className="btn btn-primary"
-                                onClick={runPrediction}
-                                disabled={loading || historicalData.length < 7}
-                                style={{ width: '100%' }}
-                            >
-                                {loading ? (
-                                    <span className="loading">
-                                        <span className="spinner"></span> Predicting...
-                                    </span>
-                                ) : (
-                                    <>
-                                        <Icon name="rocket" size={18} />
-                                        Run Prediction
-                                    </>
-                                )}
-                            </button>
-
-                            {historicalData.length < 7 && historicalData.length > 0 && (
-                                <div className="alert alert-info mt-2">
-                                    Need {7 - historicalData.length} more data points (minimum 7 required)
-                                </div>
-                            )}
-                        </div>
-
-                        {/* Data Input Card */}
-                        <div className="card mb-3">
-                            <div className="card-header">
-                                <h3 className="card-title">Historical Data</h3>
+                                <h3 className="card-title">Input Data</h3>
+                                <button
+                                    className="btn btn-danger btn-sm"
+                                    onClick={handleClearAll}
+                                    disabled={historicalData.length === 0}
+                                >
+                                    Clear All
+                                </button>
                             </div>
 
                             <CsvUploader
                                 onDataLoaded={handleCsvData}
                                 mode="timeseries"
-                                label="Upload CSV (date, value columns)"
+                                label="Upload CSV (kolom: date, value)"
                             />
 
                             <div className="mt-3">
-                                <label className="label">Or add manually:</label>
-                                <div className="flex gap-1">
+                                <label className="label">ATAU TAMBAH MANUAL:</label>
+                                <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                     <input
                                         type="date"
                                         className="input"
                                         value={manualDate}
                                         onChange={(e) => setManualDate(e.target.value)}
-                                        placeholder="Date"
+                                        style={{ flex: 1, minWidth: '140px' }}
                                     />
                                     <input
                                         type="number"
                                         className="input"
+                                        placeholder="Nilai"
                                         value={manualValue}
                                         onChange={(e) => setManualValue(e.target.value)}
-                                        placeholder="Value"
-                                        step="any"
+                                        min="0"
+                                        step="0.1"
+                                        style={{ flex: 1, minWidth: '100px' }}
                                     />
                                     <button className="btn btn-secondary" onClick={handleManualAdd}>
-                                        Add
+                                        Tambah
                                     </button>
                                 </div>
                             </div>
 
-                            {/* Data Table */}
+                            {/* Data Table with Checkbox Toggle */}
                             <div className="mt-3">
-                                <div className="table-wrapper" style={{ maxHeight: '300px', overflowY: 'auto' }}>
+                                <div className="table-wrapper" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                                     <table className="table">
                                         <thead>
                                             <tr>
-                                                <th>#</th>
-                                                <th>Date</th>
-                                                <th>Value</th>
-                                                <th style={{ width: '60px' }}></th>
+                                                <th style={{ width: '40px' }}>#</th>
+                                                <th style={{ width: '50px' }}>Aktif</th>
+                                                <th>Tanggal</th>
+                                                <th>Nilai (mm)</th>
                                             </tr>
                                         </thead>
                                         <tbody>
                                             {historicalData.length === 0 ? (
                                                 <tr>
                                                     <td colSpan={4} style={{ textAlign: 'center', color: 'var(--text-muted)' }}>
-                                                        No data. Upload CSV or add manually.
+                                                        Belum ada data.
                                                     </td>
                                                 </tr>
                                             ) : (
-                                                historicalData.map((point, index) => (
-                                                    <tr key={index}>
-                                                        <td style={{ color: 'var(--text-muted)' }}>{index + 1}</td>
-                                                        <td>{point.date}</td>
-                                                        <td>{point.value.toFixed(2)}</td>
-                                                        <td>
-                                                            <button
-                                                                className="btn btn-danger btn-sm btn-icon"
-                                                                onClick={() => handleRemovePoint(index)}
-                                                            >
-                                                                <Icon name="x" size={16} />
-                                                            </button>
-                                                        </td>
-                                                    </tr>
-                                                ))
+                                                historicalData.slice(-10).map((point, idx) => {
+                                                    const actualIdx = historicalData.length - 10 + idx;
+                                                    const displayIdx = actualIdx >= 0 ? actualIdx : idx;
+                                                    return (
+                                                        <tr
+                                                            key={displayIdx}
+                                                            style={{ opacity: point.enabled ? 1 : 0.5 }}
+                                                        >
+                                                            <td style={{ color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+                                                                {displayIdx + 1}
+                                                            </td>
+                                                            <td>
+                                                                <input
+                                                                    type="checkbox"
+                                                                    checked={point.enabled}
+                                                                    onChange={() => handleTogglePoint(displayIdx)}
+                                                                    style={{ width: '16px', height: '16px', cursor: 'pointer' }}
+                                                                />
+                                                            </td>
+                                                            <td style={{ fontSize: '0.85rem' }}>{point.date}</td>
+                                                            <td style={{ fontSize: '0.85rem' }}>{point.value.toFixed(2)}</td>
+                                                        </tr>
+                                                    );
+                                                })
                                             )}
                                         </tbody>
                                     </table>
                                 </div>
-                                <div className="mt-1" style={{ fontSize: '0.875rem', color: 'var(--text-muted)' }}>
-                                    Total: {historicalData.length} data points
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '8px' }}>
+                                    Total: {historicalData.length} | Aktif: {activeHistorical.length}
+                                    {historicalData.length > 10 && ' (menampilkan 10 terakhir)'}
+                                </p>
+                            </div>
+
+                            <button
+                                className="btn btn-secondary mt-2"
+                                onClick={handleExportData}
+                                disabled={historicalData.length === 0}
+                                style={{ width: '100%' }}
+                            >
+                                <Icon name="download" size={16} />
+                                Export Data CSV
+                            </button>
+                        </div>
+
+                        {/* 2. VISUALIZATION SETTINGS Card */}
+                        <div className="card">
+                            <div className="card-header">
+                                <h3 className="card-title">Pengaturan Visualisasi</h3>
+                            </div>
+                            <div className="form-group">
+                                <label className="label">JUDUL GRAFIK</label>
+                                <input
+                                    type="text"
+                                    className="input"
+                                    value={chartTitle}
+                                    onChange={(e) => setChartTitle(e.target.value)}
+                                    placeholder="Masukkan judul grafik"
+                                    style={{ width: '100%' }}
+                                />
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+                                <div className="form-group">
+                                    <label className="label">LABEL SUMBU X</label>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        value={xLabel}
+                                        onChange={(e) => setXLabel(e.target.value)}
+                                        placeholder="X"
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="label">LABEL SUMBU Y</label>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        value={yLabel}
+                                        onChange={(e) => setYLabel(e.target.value)}
+                                        placeholder="Y"
+                                        style={{ width: '100%' }}
+                                    />
                                 </div>
                             </div>
                         </div>
                     </div>
 
-                    {/* Right Column - Results */}
+                    {/* ========== RIGHT COLUMN: VISUALIZATION + METHOD + METRICS + VALUES ========== */}
                     <div>
-                        {error && <div className="alert alert-error mb-3">{error}</div>}
+                        {/* 1. VISUALIZATION Card */}
+                        <div className="card mb-3">
+                            <div className="card-header">
+                                <h3 className="card-title">Visualisasi</h3>
+                                <button
+                                    className="btn btn-secondary btn-sm"
+                                    onClick={handleExportChart}
+                                    disabled={historicalData.length === 0}
+                                >
+                                    <Icon name="download" size={14} />
+                                    Export PNG
+                                </button>
+                            </div>
+                            <div className="chart-container">
+                                <ChartComponent
+                                    data={chartData}
+                                    title={chartTitle}
+                                    xLabel={xLabel}
+                                    yLabel={yLabel}
+                                    height={300}
+                                />
+                            </div>
+                        </div>
 
-                        {/* Metrics Card */}
-                        {metrics && (
+                        {/* 2. PREDICTION METHOD Card */}
+                        <div className="card mb-3">
+                            <div className="card-header">
+                                <h3 className="card-title">Metode Prediksi</h3>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="label">PILIH MODEL</label>
+                                <div className="tabs">
+                                    {MODEL_OPTIONS.map(opt => (
+                                        <button
+                                            key={opt.value}
+                                            className={`tab ${selectedModel === opt.value ? 'active' : ''}`}
+                                            onClick={() => setSelectedModel(opt.value)}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                <p style={{ fontSize: '0.8rem', color: 'var(--text-muted)', marginTop: '6px' }}>
+                                    {MODEL_OPTIONS.find(m => m.value === selectedModel)?.description}
+                                </p>
+                            </div>
+
+                            <div className="form-group">
+                                <label className="label">HORIZON PREDIKSI (HARI)</label>
+                                <input
+                                    type="range"
+                                    min="1"
+                                    max="30"
+                                    value={horizon}
+                                    onChange={(e) => setHorizon(parseInt(e.target.value))}
+                                    style={{ width: '100%', cursor: 'pointer' }}
+                                />
+                                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.8rem', color: 'var(--text-muted)' }}>
+                                    <span>1</span>
+                                    <span style={{ color: 'var(--accent-purple)', fontWeight: 600 }}>{horizon} hari</span>
+                                    <span>30</span>
+                                </div>
+                            </div>
+
+                            <button
+                                className="btn btn-primary"
+                                onClick={runPrediction}
+                                disabled={loading || activeHistorical.length < 7}
+                                style={{ width: '100%' }}
+                            >
+                                {loading ? (
+                                    <><Icon name="spinner" size={16} className="spin" /> Memproses...</>
+                                ) : (
+                                    <><Icon name="rocket" size={16} /> Jalankan Prediksi</>
+                                )}
+                            </button>
+
+                            {error && (
+                                <div className="alert alert-error mt-2">{error}</div>
+                            )}
+                        </div>
+
+                        {/* 3. ACCURACY METRICS Card */}
+                        {modelMetrics && (
                             <div className="card mb-3">
                                 <div className="card-header">
-                                    <h3 className="card-title">Model Accuracy</h3>
+                                    <h3 className="card-title">Metrik Akurasi</h3>
+                                    {usedModelName && (
+                                        <span style={{
+                                            fontSize: '0.75rem',
+                                            padding: '4px 10px',
+                                            background: 'var(--primary-gradient)',
+                                            color: 'white',
+                                            borderRadius: '20px',
+                                        }}>
+                                            {usedModelName}
+                                        </span>
+                                    )}
                                 </div>
                                 <div className="metrics-grid">
                                     <div className="metric-card">
                                         <div className="metric-label">MAE</div>
-                                        <div className="metric-value">{metrics.mae.toFixed(4)}</div>
+                                        <div className="metric-value">{modelMetrics.mae.toFixed(2)}</div>
                                     </div>
                                     <div className="metric-card">
                                         <div className="metric-label">RMSE</div>
-                                        <div className="metric-value">{metrics.rmse.toFixed(4)}</div>
+                                        <div className="metric-value">{modelMetrics.rmse.toFixed(2)}</div>
                                     </div>
                                     <div className="metric-card">
-                                        <div className="metric-label">MAPE</div>
-                                        <div className="metric-value">{metrics.mape.toFixed(2)}%</div>
+                                        <div className="metric-label">Horizon</div>
+                                        <div className="metric-value">{horizon} hari</div>
                                     </div>
                                 </div>
                             </div>
                         )}
 
-                        {/* Chart Card */}
-                        <div className="card mb-3">
-                            <div className="card-header">
-                                <h3 className="card-title">Time Series Visualization</h3>
-                            </div>
-                            <ChartComponent
-                                data={chartData}
-                                title="Historical Data & Predictions"
-                                xLabel="Date"
-                                yLabel="Value"
-                                height={400}
-                            />
-                        </div>
-
-                        {/* Predictions Table */}
+                        {/* 4. PREDICTED VALUES Card */}
                         {predictions.length > 0 && (
                             <div className="card">
                                 <div className="card-header">
-                                    <h3 className="card-title">Predicted Values</h3>
+                                    <h3 className="card-title">Hasil Prediksi</h3>
                                 </div>
-                                <div className="table-wrapper">
+                                <div className="table-wrapper" style={{ maxHeight: '200px', overflowY: 'auto' }}>
                                     <table className="table">
                                         <thead>
                                             <tr>
-                                                <th>Day</th>
-                                                <th>Date</th>
-                                                <th>Predicted Value</th>
+                                                <th>Hari ke-</th>
+                                                <th>Tanggal</th>
+                                                <th>Prediksi (mm)</th>
                                             </tr>
                                         </thead>
                                         <tbody>
-                                            {predictions.map((pred, index) => (
-                                                <tr key={index}>
-                                                    <td>+{index + 1}</td>
+                                            {predictions.map((pred, idx) => (
+                                                <tr key={idx}>
+                                                    <td>{idx + 1}</td>
                                                     <td>{pred.date}</td>
-                                                    <td style={{ color: 'var(--accent-green)' }}>
-                                                        {pred.value.toFixed(4)}
+                                                    <td style={{ fontWeight: 600, color: 'var(--accent-purple)' }}>
+                                                        {pred.value.toFixed(2)}
                                                     </td>
                                                 </tr>
                                             ))}

@@ -1,104 +1,160 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { PredictionResult, ApiError } from '@/types';
+import {
+    ModelType,
+    MODEL_REGISTRY,
+    recursiveForecast,
+    getModelInfo,
+    getAvailableModels,
+} from '@/lib/onnxLoader';
 
-/**
- * Simple prediction using weighted moving average and trend analysis.
- * This is a fallback for when ONNX runtime is not available (e.g., Vercel).
- */
-function simplePrediction(features: number[]): number {
-    // features = [lag_1, lag_2, lag_3, lag_4, lag_5, lag_6, lag_7]
-    // lag_1 is most recent, lag_7 is oldest
+// Types for API response
+interface PredictionResponse {
+    success: true;
+    model: {
+        type: ModelType;
+        name: string;
+        mae: number;
+        rmse: number;
+    };
+    horizon: number;
+    predictions: {
+        date: string;
+        value: number;
+    }[];
+    historicalSummary: {
+        count: number;
+        startDate: string;
+        endDate: string;
+    };
+}
 
-    // Weighted moving average (more weight on recent values)
-    const weights = [0.30, 0.25, 0.18, 0.12, 0.08, 0.05, 0.02];
-    let weightedSum = 0;
-    let totalWeight = 0;
-
-    for (let i = 0; i < features.length; i++) {
-        weightedSum += features[i] * weights[i];
-        totalWeight += weights[i];
-    }
-
-    const movingAvg = weightedSum / totalWeight;
-
-    // Simple trend: compare recent vs older average
-    const recentAvg = (features[0] + features[1] + features[2]) / 3;
-    const olderAvg = (features[4] + features[5] + features[6]) / 3;
-    const trend = recentAvg - olderAvg;
-
-    // Combine moving average with slight trend adjustment
-    let prediction = movingAvg + (trend * 0.1);
-
-    // Add small random variation for realism
-    const variation = (Math.random() - 0.5) * 2; // -1 to 1
-    prediction += variation;
-
-    // Ensure non-negative
-    return Math.max(0, prediction);
+interface ErrorResponse {
+    success: false;
+    error: string;
+    details?: string;
 }
 
 /**
  * POST /api/predict
  * 
- * Runs prediction for time-series using lag features.
+ * Request body:
+ * {
+ *   "model": "gbr" | "lstm" | "bilstm",
+ *   "horizon": 1-30,
+ *   "historicalData": [{ "date": "YYYY-MM-DD", "value": number }, ...]
+ * }
  */
-export async function POST(request: NextRequest): Promise<NextResponse<PredictionResult | ApiError>> {
+export async function POST(
+    request: NextRequest
+): Promise<NextResponse<PredictionResponse | ErrorResponse>> {
     try {
         const body = await request.json();
 
         // Validate request body
         if (!body || typeof body !== 'object') {
             return NextResponse.json(
-                { error: 'Invalid request body' },
+                { success: false, error: 'Invalid request body' },
                 { status: 400 }
             );
         }
 
-        const { features } = body;
+        const { model, horizon, historicalData } = body;
 
-        // Validate features array
-        if (!Array.isArray(features)) {
+        // Validate model type
+        const validModels: ModelType[] = ['gbr', 'lstm', 'bilstm'];
+        if (!model || !validModels.includes(model)) {
             return NextResponse.json(
-                { error: 'Features must be an array' },
+                {
+                    success: false,
+                    error: 'Invalid model type',
+                    details: `Valid models: ${validModels.join(', ')}`,
+                },
                 { status: 400 }
             );
         }
 
-        if (features.length !== 7) {
+        // Validate horizon
+        const horizonNum = Number(horizon);
+        if (isNaN(horizonNum) || horizonNum < 1 || horizonNum > 30) {
             return NextResponse.json(
-                { error: 'Features must contain exactly 7 values (lag_1 through lag_7)' },
+                {
+                    success: false,
+                    error: 'Invalid horizon',
+                    details: 'Horizon must be between 1 and 30 days',
+                },
                 { status: 400 }
             );
         }
 
-        // Validate all features are numbers
-        for (let i = 0; i < features.length; i++) {
-            const val = features[i];
-            if (typeof val !== 'number' || isNaN(val)) {
+        // Validate historical data
+        if (!Array.isArray(historicalData) || historicalData.length < 7) {
+            return NextResponse.json(
+                {
+                    success: false,
+                    error: 'Insufficient historical data',
+                    details: 'At least 7 data points are required',
+                },
+                { status: 400 }
+            );
+        }
+
+        // Validate each data point
+        for (let i = 0; i < historicalData.length; i++) {
+            const point = historicalData[i];
+            if (!point.date || typeof point.value !== 'number') {
                 return NextResponse.json(
-                    { error: `Feature at index ${i} is not a valid number`, details: `Value: ${val}` },
+                    {
+                        success: false,
+                        error: `Invalid data point at index ${i}`,
+                        details: 'Each point must have "date" (string) and "value" (number)',
+                    },
                     { status: 400 }
                 );
             }
         }
 
-        // Preprocess: negative values become 0
-        const processedFeatures = features.map((v: number) => Math.max(0, v));
+        // Run recursive forecasting
+        const predictions = await recursiveForecast(
+            model as ModelType,
+            historicalData,
+            horizonNum
+        );
 
-        // Run simple prediction (fallback for Vercel compatibility)
-        const prediction = simplePrediction(processedFeatures);
+        // Get model info
+        const modelInfo = getModelInfo(model as ModelType);
+
+        // Sort historical data to get summary
+        const sortedHistorical = [...historicalData].sort(
+            (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime()
+        );
 
         return NextResponse.json({
-            prediction,
-            features: processedFeatures
+            success: true,
+            model: {
+                type: model as ModelType,
+                name: modelInfo.displayName,
+                mae: modelInfo.mae,
+                rmse: modelInfo.rmse,
+            },
+            horizon: horizonNum,
+            predictions: predictions.map(p => ({
+                date: p.date,
+                value: Math.round(p.value * 100) / 100, // Round to 2 decimals
+            })),
+            historicalSummary: {
+                count: historicalData.length,
+                startDate: sortedHistorical[0].date,
+                endDate: sortedHistorical[sortedHistorical.length - 1].date,
+            },
         });
 
     } catch (error) {
-        console.error('Prediction error:', error);
+        console.error('[API/predict] Error:', error);
         return NextResponse.json(
             {
+                success: false,
                 error: 'Prediction failed',
-                details: error instanceof Error ? error.message : String(error)
+                details: error instanceof Error ? error.message : String(error),
             },
             { status: 500 }
         );
@@ -107,20 +163,32 @@ export async function POST(request: NextRequest): Promise<NextResponse<Predictio
 
 /**
  * GET /api/predict
- * Returns information about the prediction endpoint
+ * Returns API documentation and available models
  */
 export async function GET(): Promise<NextResponse> {
+    const models = getAvailableModels();
+
     return NextResponse.json({
         endpoint: '/api/predict',
         method: 'POST',
-        description: 'Time-series rainfall prediction using weighted moving average with trend analysis',
+        description: 'Time-series rainfall prediction using ONNX ML models',
+        availableModels: models.map(m => ({
+            type: m.type,
+            name: m.info.displayName,
+            description: m.info.description,
+            mae: m.info.mae,
+            rmse: m.info.rmse,
+        })),
         request: {
-            features: '[lag_1, lag_2, lag_3, lag_4, lag_5, lag_6, lag_7] - Array of 7 numerical values (most recent to oldest)'
+            model: 'Model type: "gbr" | "lstm" | "bilstm"',
+            horizon: 'Prediction horizon: 1-30 days',
+            historicalData: 'Array of { date: "YYYY-MM-DD", value: number } (minimum 7 points)',
         },
         response: {
-            prediction: 'Predicted rainfall value for the next time step',
-            features: 'Processed input features'
+            success: 'boolean',
+            model: 'Selected model information with MAE/RMSE metrics',
+            horizon: 'Number of days predicted',
+            predictions: 'Array of { date, value } for each predicted day',
         },
-        note: 'This is a simplified prediction model for demonstration. For production, consider using ONNX Runtime on a server that supports native modules.'
     });
 }

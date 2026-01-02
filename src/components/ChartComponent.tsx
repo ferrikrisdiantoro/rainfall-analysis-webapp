@@ -181,8 +181,33 @@ export default function ChartComponent({
     // Determine chart type
     const chartType = isScatterData ? 'scatter' as const : type;
 
+    const handleSaveImage = () => {
+        if (chartRef.current) {
+            const url = chartRef.current.toBase64Image();
+            const link = document.createElement('a');
+            link.download = `chart-${new Date().toISOString().slice(0, 10)}.png`;
+            link.href = url;
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    };
+
     return (
-        <div className="chart-container" style={{ height }}>
+        <div className="chart-container relative" style={{ height }}>
+            <div className="absolute top-2 right-2 z-10">
+                <button
+                    onClick={handleSaveImage}
+                    className="btn btn-xs btn-secondary btn-icon"
+                    title="Export Chart as Image"
+                    style={{ backgroundColor: 'rgba(255, 255, 255, 0.8)', color: '#4f46e5' }}
+                >
+                    {/* Inline SVG if Icon not imported, or improved imports */}
+                    <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"></path>
+                    </svg>
+                </button>
+            </div>
             <Chart
                 ref={chartRef as React.RefObject<ChartJS<typeof chartType>>}
                 type={chartType}

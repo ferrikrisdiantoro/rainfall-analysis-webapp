@@ -1,0 +1,189 @@
+REGRESI 
+ 
+LAYOUT 
+Layout disesuaikan menjadi sebagai berikut: 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+DATA INPUT 
+- 
+Upload CSV 
+- 
+Tabel Manual Input 
+VISUALIZATION 
+- 
+Grafik Data dan Garis Regresi 
+VISUALIZATION SETTINGS 
+- 
+Pengaturan Judul dan Nama XY 
+- 
+Pengaturan Label Data 
+REGRESSION METHOD 
+REGRESSION FORMULA 
+ACCURACY METRICS 
+VISUALIZATION 
+1. Bagian ini memuat tampilan grafik data point dan garis regresinya. 
+2. Ganti simbol garis hasil regresi dengan garis, bukan lingkaran 
+ 
+ 
+3. Tampilan visualisasi grafik data dibuat mendekati format baku yang ada di jurnal paper, ada 
+kotak sekelilingnya, tidak ada grid ditengah, tapi gridnya ada diluar kotak. Bisa 
+menggunakan warna background grey atau tidak. 
+ 
+ 
+4. Tambahkan tombol export grafik dan export data agar bisa digunakan di aplikasi lain. 
+ 
+ 
+ 
+DATA INPUT 
+1. Bagian ini memuat data point yang akan diinput, baik input secara mabual maupun dengan 
+upload file csv. 
+2. Data bukan dihapus, tapi hanya di add/remove dari grafik/perhitungan saja, bisa di 
+add/remove lagi sewaktu2 jika dibutuhkan, jadi ganti action delete menjadi checkbox. 
+3. Tambahkan tombol Clear All, untuk menghapus semua baris data dan mulai input dari 
+awal lagi. 
+4. Hapus tombol Add Point di pojok kanan atas. 
+ 
+ 
+ 
+ 
+SETTING 
+1. Bagian Setting ini hanya berisi pengaturan terkait visualisasi. 
+2. Pindahkan pemilihan metode regresi ke bagian Regression Formula. 
+3. Hasil grafik ini nantinya akan di copy paste ke laporan, jadi: 
+a. Tambahkan baris untuk merubah judul, nama sumbu x dan y, dan data label pada grafik 
+b. Tambahkan tombol untuk copy ke clipboard 
+ 
+Clear All 
+REGRESSION FORMULA 
+1. Bagian ini khusus untuk: 
+a. memilih metode regresi 
+b. menampilkan formula hasil regresi 
+c. menampilkan akurasi formula regresi 
+2. Tambahkan metode regresi lain yang terdapat pada MS Excel (Power, Logarithmic, Moving 
+Average) 
+3. Tambahkan tombol copy pada formula hasil regresi, agar formula ini mudah di copy paste 
+ke dokumen lain. Tombol copy dapat mencontoh tombol copy pada text coding. 
+ 
+ 
+ 
+ 
+ACCURACY METRICS 
+1. Bagian ini dipindah ke bawah bagian Regression Formula. 
+ 
+ 
+ 
+ 
+PREDIKSI HUJAN 
+ 
+LAYOUT 
+Layout disesuaikan menjadi sebagai berikut: 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+ 
+DATA INPUT 
+- 
+Upload CSV 
+- 
+Tabel Manual Input 
+VISUALIZATION 
+- 
+Grafik Data Asli dan Prediksi 
+VISUALIZATION SETTINGS 
+- 
+Pengaturan Judul dan Nama XY 
+- 
+Pengaturan Label Data 
+PREDICTION METHOD 
+PREDICTED VALUES 
+ACCURACY METRICS 
+VISUALIZATION 
+1. Bagian ini memuat tampilan grafik data point dan garis prediksinya. 
+2. Warna Historical Data dan Prediction hampir sama, ganti warna data points dengan warna 
+yang kontras. Atau bisa juga historical data menggunakan garis lurus dengan lingkaran bulat 
+terisi penuh (
+), dan predictions garis putus-putus dengan lingkaran tanpa warna (
+) 
+ 
+ 
+3. Tambahkan tombol export grafik dan export data agar bisa digunakan di aplikasi lain. 
+ 
+DATA INPUT 
+1. Bagian ini memuat data point yang akan diinput, baik input secara mabual maupun dengan 
+upload file csv. 
+2. Data input dibuat bisa harian atau jam-jaman, ditambahkan input untuk jam, bila data 
+yang ingin dimasukkan adalah data hujan jam-jaman. 
+3. Data bukan dihapus, tapi hanya di add/remove dari grafik/perhitungan saja, bisa di 
+add/remove lagi sewaktu2 jika dibutuhkan, jadi ganti action delete menjadi checkbox. 
+ 
+4. Tambahkan tombol Clear All, untuk menghapus semua baris data dan mulai input dari 
+awal lagi. 
+5. Tambahkan tombol untuk menambahkan kolom data input lain jika dataset yang akan 
+dimasukkan adalah data multivariate 
+ 
+PREDICTION METHOD 
+1. Bagian ini khusus untuk: 
+a. memilih algoritma yang digunakan untuk prediksi 
+b. menampilkan akurasi formula regresi 
+c. menampilkan predicted values 
+2. Baru 1 algoritma yang ditampilkan, dan hasilnya tidak terlalu mencerminkan pola prediksi 
+yang sesuai dengan pola pada data input. tambahkan algoritma lain sebagai alternatif 
+prediksi untuk mendapatkan alternatif yang paling akurat, sebagai berikut: 
+a. ARIMA/SARIMA 
+b. XGBoost 
+c. LSTM (Multivariate) → ke depannya sy ingin sistem ini selain bisa digunakan untuk 
+dataset dengan 1 parameter, tapi bisa digunakan juga untuk dataset dengan data lebih 
+lengkap (suhu, kelembaban, tekanan, dan indeks ENSO) 
+d. Hybrid XGBoost+LSTM 
+ 
+ 
+ 
+3. Feature engineering untuk XGBoost: 
+a. Lag hujan (1, 3, 7 hari) 
+b. Rolling mean/max 
+c. Akumulasi hujan 3–7 hari 
+d. Indeks musiman (bulan, fase ENSO) 
+4. Normalisasi untuk LSTM: 
+a. Min-max scaling atau z-score 
+5. Accuracy Metrics: RMSE, MAE, ROC-AUC, CRPS 
+ 
+SETTING 
+1. Bagian Setting ini hanya berisi pengaturan terkait visualisasi. 
+2. Pindahkan pemilihan metode prediksi ke bagian Prediction Method. 
+3. Hasil grafik ini nantinya akan di copy paste ke laporan, jadi: 
+a. Tambahkan baris untuk merubah judul, nama sumbu x dan y, dan data label pada grafik 
+b. Tambahkan tombol untuk copy ke clipboard 
