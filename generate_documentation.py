@@ -1,5 +1,6 @@
 """
 Script untuk Generate Dokumentasi PDF - Analisis Curah Hujan Web App
+FIXED VERSION - No special unicode characters
 
 Author: Ferri Krisdiantoro
 Contact: 
@@ -11,22 +12,19 @@ Contact:
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
-from reportlab.lib.units import cm, mm
-from reportlab.lib.colors import HexColor, black, white
+from reportlab.lib.units import cm
+from reportlab.lib.colors import HexColor, white
 from reportlab.platypus import (
     SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, 
-    PageBreak, Image, ListFlowable, ListItem
+    PageBreak, Preformatted
 )
-from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY, TA_RIGHT
-from reportlab.pdfgen import canvas
-from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_JUSTIFY
 from datetime import datetime
 import os
 
 # Path
 BASE_DIR = r"D:\Projek\Freelancer\cl42_fw - Web App Regresi dan Prediksi Curah Hujan\webapp"
 OUTPUT_PDF = os.path.join(BASE_DIR, "DOKUMENTASI_SISTEM.pdf")
-TEMPLATE_DIR = os.path.join(BASE_DIR, "public", "template_dokumentasi")
 
 # Colors
 PRIMARY_COLOR = HexColor("#6366f1")
@@ -105,31 +103,22 @@ def create_styles():
     
     # Code style
     styles.add(ParagraphStyle(
-        name='CodeCustom',
+        name='CodeBlock',
         parent=styles['Normal'],
-        fontSize=9,
+        fontSize=8,
         fontName='Courier',
         textColor=DARK_COLOR,
         backColor=HexColor("#f1f5f9"),
         leftIndent=10,
         rightIndent=10,
         spaceAfter=8,
-        leading=12
-    ))
-    
-    # Caption
-    styles.add(ParagraphStyle(
-        name='Caption',
-        parent=styles['Normal'],
-        fontSize=9,
-        textColor=MUTED_COLOR,
-        alignment=TA_CENTER,
-        spaceAfter=12
+        spaceBefore=4,
+        leading=11
     ))
     
     # Footer style
     styles.add(ParagraphStyle(
-        name='Footer',
+        name='FooterStyle',
         parent=styles['Normal'],
         fontSize=8,
         textColor=MUTED_COLOR,
@@ -166,7 +155,7 @@ def create_header_footer(canvas, doc):
     # Footer content
     canvas.setFont('Helvetica', 8)
     canvas.setFillColor(MUTED_COLOR)
-    footer_text = f"© 2026 Ferri Krisdiantoro | WA: {CONTACT_INFO['wa']} | IG: {CONTACT_INFO['ig']} | {CONTACT_INFO['website']}"
+    footer_text = f"2026 Ferri Krisdiantoro | WA: {CONTACT_INFO['wa']} | IG: {CONTACT_INFO['ig']} | {CONTACT_INFO['website']}"
     canvas.drawCentredString(A4[0]/2, 1*cm, footer_text)
     
     canvas.restoreState()
@@ -179,7 +168,7 @@ def create_cover_page(styles):
     
     # Main title
     elements.append(Paragraph(
-        "📊 DOKUMENTASI SISTEM", 
+        "DOKUMENTASI SISTEM", 
         styles['CustomTitle']
     ))
     
@@ -201,7 +190,7 @@ def create_cover_page(styles):
     info_data = [
         ['Versi', '1.0.0'],
         ['Tanggal', datetime.now().strftime('%d %B %Y')],
-        ['Platform', 'Next.js + ONNX Runtime'],
+        ['Platform', 'Next.js + ONNX Runtime Web'],
         ['Author', 'Ferri Krisdiantoro'],
     ]
     
@@ -229,14 +218,14 @@ def create_cover_page(styles):
     ))
     
     elements.append(Paragraph(
-        f"<font color='#6366f1'>📞 WhatsApp:</font> {CONTACT_INFO['wa']} | "
-        f"<font color='#6366f1'>📸 Instagram:</font> {CONTACT_INFO['ig']}",
+        f"<font color='#6366f1'>WhatsApp:</font> {CONTACT_INFO['wa']} | "
+        f"<font color='#6366f1'>Instagram:</font> {CONTACT_INFO['ig']}",
         ParagraphStyle(name='Contact1', alignment=TA_CENTER, fontSize=10, spaceAfter=4)
     ))
     
     elements.append(Paragraph(
-        f"<font color='#6366f1'>🌐 Website:</font> {CONTACT_INFO['website']} | "
-        f"<font color='#6366f1'>💼 Fastwork:</font> {CONTACT_INFO['fastwork']}",
+        f"<font color='#6366f1'>Website:</font> {CONTACT_INFO['website']} | "
+        f"<font color='#6366f1'>Fastwork:</font> {CONTACT_INFO['fastwork']}",
         ParagraphStyle(name='Contact2', alignment=TA_CENTER, fontSize=10)
     ))
     
@@ -314,7 +303,7 @@ def create_intro_section(styles):
     ]
     
     for obj in objectives:
-        elements.append(Paragraph(f"• {obj}", styles['BodyCustom']))
+        elements.append(Paragraph(f"* {obj}", styles['BodyCustom']))
     
     elements.append(Paragraph("1.3 Teknologi yang Digunakan", styles['Heading2Custom']))
     
@@ -322,7 +311,7 @@ def create_intro_section(styles):
         ['Komponen', 'Teknologi', 'Versi'],
         ['Frontend', 'Next.js (React)', '16.1.1'],
         ['Backend API', 'Next.js API Routes', '16.1.1'],
-        ['ML Runtime', 'ONNX Runtime Node', '^1.20.1'],
+        ['ML Runtime', 'ONNX Runtime Web (Browser)', '1.20+'],
         ['Charting', 'Chart.js + react-chartjs-2', '4.x / 5.x'],
         ['Styling', 'CSS Custom Properties', '-'],
         ['Language', 'TypeScript', '5.x'],
@@ -360,76 +349,69 @@ def create_architecture_section(styles):
         styles['BodyCustom']
     ))
     
-    dir_structure = """
-webapp/
-├── public/
-│   └── models/           # ONNX model files
-│       ├── model_gbr.onnx
-│       ├── model_lstm.onnx
-│       └── model_bilstm.onnx
-├── src/
-│   ├── app/
-│   │   ├── api/          # API Routes
-│   │   │   ├── predict/
-│   │   │   └── regression/
-│   │   ├── prediction/   # Prediction page
-│   │   ├── regression/   # Regression page
-│   │   ├── layout.tsx    # Root layout
-│   │   ├── page.tsx      # Home page
-│   │   └── globals.css   # Global styles
-│   ├── components/       # Reusable components
-│   │   ├── ChartComponent.tsx
-│   │   ├── CsvUploader.tsx
-│   │   ├── DataTable.tsx
-│   │   ├── Icon.tsx
-│   │   └── Navbar.tsx
-│   ├── lib/              # Utility libraries
-│   │   ├── exportUtils.ts
-│   │   ├── onnxLoader.ts
-│   │   └── regression.ts
-│   └── types/            # TypeScript types
-│       └── index.ts
-└── notebook/
-    └── prediksi_hujan.ipynb  # Training notebook
-"""
+    # Directory structure as table
+    dir_data = [
+        ['Folder/File', 'Deskripsi'],
+        ['public/models/', 'File model ONNX (GBR, LSTM, BiLSTM)'],
+        ['src/app/', 'Halaman aplikasi (page.tsx)'],
+        ['src/app/api/', 'API Routes (predict, regression)'],
+        ['src/app/prediction/', 'Halaman prediksi curah hujan'],
+        ['src/app/regression/', 'Halaman analisis regresi'],
+        ['src/components/', 'Komponen React (Chart, DataTable, dll)'],
+        ['src/lib/', 'Library utilities (regression.ts, onnxWebInference.ts)'],
+        ['src/types/', 'TypeScript type definitions'],
+        ['notebook/', 'Jupyter notebook untuk training'],
+    ]
     
-    elements.append(Paragraph(f"<pre>{dir_structure}</pre>", styles['CodeCustom']))
+    dir_table = Table(dir_data, colWidths=[5*cm, 9*cm])
+    dir_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), SECONDARY_COLOR),
+        ('TEXTCOLOR', (0, 0), (-1, 0), white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (0, -1), 'Courier'),
+        ('FONTNAME', (1, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#e2e8f0")),
+        ('PADDING', (0, 0), (-1, -1), 6),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [white, HexColor("#f8fafc")]),
+    ]))
+    
+    elements.append(dir_table)
     
     elements.append(Paragraph("2.2 Alur Data (Data Flow)", styles['Heading2Custom']))
     elements.append(Paragraph(
-        "Sistem menggunakan arsitektur client-server dengan Next.js sebagai full-stack framework:",
+        "Sistem menggunakan arsitektur client-side inference dengan ONNX Runtime Web:",
         styles['BodyCustom']
     ))
     
     flow_steps = [
-        "User Input: Data diinput melalui form manual atau upload CSV",
-        "Client Processing: Data divalidasi dan diformat di browser",
-        "API Request: Data dikirim ke Next.js API Routes",
-        "Server Processing: API melakukan kalkulasi regresi atau inferensi ML",
-        "Model Inference: ONNX Runtime menjalankan model prediksi",
-        "Response: Hasil dikembalikan dalam format JSON",
-        "Visualization: Chart.js merender grafik hasil analisis",
-        "Export: User dapat mengekspor hasil ke PNG atau CSV",
+        "1. User Input: Data diinput melalui form manual atau upload CSV",
+        "2. Client Processing: Data divalidasi dan diformat di browser",
+        "3. Model Loading: ONNX model diload ke browser (cached)",
+        "4. Feature Engineering: Fitur dikalkulasi (lag, rolling stats)",
+        "5. Inference: ONNX Runtime Web menjalankan prediksi di browser",
+        "6. Visualization: Chart.js merender grafik hasil analisis",
+        "7. Export: User dapat mengekspor hasil ke PNG atau CSV",
     ]
     
-    for i, step in enumerate(flow_steps, 1):
-        elements.append(Paragraph(f"<b>{i}.</b> {step}", styles['BodyCustom']))
+    for step in flow_steps:
+        elements.append(Paragraph(step, styles['BodyCustom']))
     
     elements.append(Paragraph("2.3 Deployment Architecture", styles['Heading2Custom']))
     elements.append(Paragraph(
         "Aplikasi ini dirancang untuk deployment di Vercel dengan arsitektur serverless. "
-        "Model ONNX disimpan di folder public dan diload secara lazy saat pertama kali dibutuhkan. "
-        "Session model di-cache menggunakan singleton pattern untuk optimasi performa.",
+        "Model ONNX disimpan di folder public dan diload di browser menggunakan onnxruntime-web. "
+        "Ini memungkinkan inferensi ML tanpa server-side processing.",
         styles['BodyCustom']
     ))
     
     deploy_data = [
         ['Aspek', 'Konfigurasi'],
         ['Hosting', 'Vercel (Serverless)'],
+        ['ML Inference', 'Browser (ONNX Runtime Web)'],
         ['Build', 'Next.js Static + Dynamic Routes'],
-        ['API', 'Serverless Functions'],
-        ['Model Loading', 'Lazy + Singleton Cache'],
         ['Static Assets', 'Vercel CDN'],
+        ['Model Loading', 'Lazy load + Session cache'],
     ]
     
     deploy_table = Table(deploy_data, colWidths=[5*cm, 8*cm])
@@ -474,31 +456,31 @@ def create_regression_section(styles):
         },
         {
             'name': 'Polynomial Regression',
-            'formula': 'y = a₀ + a₁x + a₂x² + ... + aₙxⁿ',
+            'formula': 'y = a0 + a1*x + a2*x^2 + ... + an*x^n',
             'desc': 'Regresi polynomial untuk kurva non-linear dengan degree 2-6.',
             'use_case': 'Kurva parabola, kubik, atau pola kompleks'
         },
         {
             'name': 'Exponential Regression',
-            'formula': 'y = a × e^(bx)',
+            'formula': 'y = a * e^(bx)',
             'desc': 'Regresi eksponensial untuk pertumbuhan/penurunan eksponensial.',
             'use_case': 'Pertumbuhan populasi, peluruhan radioaktif'
         },
         {
             'name': 'Power Regression',
-            'formula': 'y = ax^b',
+            'formula': 'y = a * x^b',
             'desc': 'Regresi power untuk hubungan pangkat antara variabel.',
             'use_case': 'Kurva rating (Q-H), hukum fisika'
         },
         {
             'name': 'Logarithmic Regression',
-            'formula': 'y = a + b ln(x)',
+            'formula': 'y = a + b * ln(x)',
             'desc': 'Regresi logaritmik untuk kurva yang melambat.',
             'use_case': 'Kurva pembelajaran, diminishing returns'
         },
         {
             'name': 'Moving Average',
-            'formula': 'MA(n) = (x₁ + x₂ + ... + xₙ) / n',
+            'formula': 'MA(n) = (x1 + x2 + ... + xn) / n',
             'desc': 'Rata-rata bergerak untuk smoothing data time series.',
             'use_case': 'Trend detection, noise reduction'
         },
@@ -518,9 +500,9 @@ def create_regression_section(styles):
     
     metrics_data = [
         ['Metrik', 'Rumus', 'Interpretasi'],
-        ['R² (Coefficient of Determination)', '1 - (SS_res / SS_tot)', '0-1, semakin tinggi semakin baik'],
-        ['MAE (Mean Absolute Error)', 'Σ|y - ŷ| / n', 'Error rata-rata, satuan sama dengan Y'],
-        ['RMSE (Root Mean Square Error)', '√(Σ(y - ŷ)² / n)', 'Error kuadrat, sensitif terhadap outlier'],
+        ['R-squared (R2)', '1 - (SS_res / SS_tot)', '0-1, semakin tinggi semakin baik'],
+        ['MAE', 'sum(|y - y_pred|) / n', 'Error rata-rata, satuan sama dengan Y'],
+        ['RMSE', 'sqrt(sum((y - y_pred)^2) / n)', 'Error kuadrat, sensitif terhadap outlier'],
     ]
     
     metrics_table = Table(metrics_data, colWidths=[4*cm, 5*cm, 5*cm])
@@ -539,28 +521,11 @@ def create_regression_section(styles):
     
     elements.append(Paragraph("3.4 Implementasi Teknis", styles['Heading2Custom']))
     elements.append(Paragraph(
-        "Kalkulasi regresi diimplementasikan dalam file <font color='#6366f1'>src/lib/regression.ts</font> "
-        "dengan algoritma yang dioptimasi untuk browser dan Node.js. Polynomial regression menggunakan "
+        "Kalkulasi regresi diimplementasikan dalam file src/lib/regression.ts "
+        "dengan algoritma yang dioptimasi untuk browser. Polynomial regression menggunakan "
         "Gaussian elimination dengan partial pivoting untuk stabilitas numerik.",
         styles['BodyCustom']
     ))
-    
-    code_example = """
-// Contoh penggunaan API Regresi
-const response = await fetch('/api/regression', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-        data: [{ x: 100, y: 15 }, { x: 200, y: 22 }],
-        type: 'linear'  // atau 'polynomial', 'exponential', dll
-    })
-});
-
-const result = await response.json();
-// result.formula = "y = 11.9707 + 0.0001x"
-// result.r2 = 0.9624
-"""
-    elements.append(Paragraph(f"<pre>{code_example}</pre>", styles['CodeCustom']))
     
     elements.append(PageBreak())
     
@@ -576,41 +541,60 @@ def create_prediction_section(styles):
     elements.append(Paragraph(
         "Modul Prediksi Curah Hujan menggunakan Machine Learning untuk memprediksi curah hujan "
         "1-30 hari ke depan berdasarkan data historis. Sistem ini menggunakan tiga model yang "
-        "telah dilatih dan diekspor ke format ONNX untuk inferensi yang cepat di server.",
+        "telah dilatih dan diekspor ke format ONNX untuk inferensi di browser.",
         styles['BodyCustom']
     ))
     
-    elements.append(Paragraph("4.2 Model Machine Learning", styles['Heading2Custom']))
+    elements.append(Paragraph("4.2 Data Training", styles['Heading2Custom']))
+    elements.append(Paragraph(
+        "Model dilatih menggunakan data curah hujan harian dengan karakteristik berikut:",
+        styles['BodyCustom']
+    ))
+    
+    data_stats = [
+        ['Statistik', 'Nilai'],
+        ['Jumlah data', '7,320 hari'],
+        ['Range', '0 - 11 mm'],
+        ['Mean', '1.46 mm'],
+        ['Median', '0.9 mm'],
+        ['Std Dev', '2.22 mm'],
+    ]
+    
+    data_table = Table(data_stats, colWidths=[5*cm, 5*cm])
+    data_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), SECONDARY_COLOR),
+        ('TEXTCOLOR', (0, 0), (-1, 0), white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#e2e8f0")),
+        ('PADDING', (0, 0), (-1, -1), 8),
+    ]))
+    
+    elements.append(data_table)
+    
+    elements.append(Paragraph("4.3 Model Machine Learning", styles['Heading2Custom']))
     
     models = [
         {
             'name': 'Gradient Boosting Regressor (GBR)',
             'type': 'Tabular ML',
-            'input': '7 features (lag, rolling stats, month)',
+            'input': '9 features (lag, rolling stats, time)',
             'mae': '6.42 mm',
             'rmse': '11.28 mm',
-            'desc': 'Model ensemble berbasis decision tree yang efektif untuk data tabular dengan feature engineering manual.',
-            'features': ['lag_1 (curah hujan kemarin)', 'lag_3 (3 hari lalu)', 'lag_7 (7 hari lalu)', 
-                        'roll_mean_3 (rata-rata 3 hari)', 'roll_mean_7 (rata-rata 7 hari)',
-                        'roll_max_7 (maksimum 7 hari)', 'bulan_idx (indeks bulan 0-11)']
         },
         {
             'name': 'LSTM (Long Short-Term Memory)',
             'type': 'Deep Learning',
-            'input': 'Sequence [1, 7, 1]',
+            'input': 'Sequence [batch, 7, 1]',
             'mae': '7.15 mm',
             'rmse': '12.03 mm',
-            'desc': 'Model recurrent neural network yang mampu menangkap dependensi jangka panjang dalam data sekuensial.',
-            'features': ['7 nilai curah hujan berurutan sebagai input sequence']
         },
         {
             'name': 'BiLSTM (Bidirectional LSTM)',
             'type': 'Deep Learning',
-            'input': 'Sequence [1, 7, 1]',
+            'input': 'Sequence [batch, 7, 1]',
             'mae': '6.89 mm',
             'rmse': '11.67 mm',
-            'desc': 'Varian LSTM yang memproses sequence dari dua arah untuk konteks yang lebih kaya.',
-            'features': ['7 nilai curah hujan berurutan, diproses forward dan backward']
         },
     ]
     
@@ -634,30 +618,47 @@ def create_prediction_section(styles):
         ]))
         
         elements.append(model_table)
-        elements.append(Paragraph(model['desc'], styles['BodyCustom']))
-        
-        elements.append(Paragraph("<i>Features:</i>", styles['BodyCustom']))
-        for feat in model['features']:
-            elements.append(Paragraph(f"  • {feat}", styles['BodyCustom']))
+        elements.append(Spacer(1, 0.3*cm))
     
-    elements.append(Paragraph("4.3 Recursive Forecasting", styles['Heading2Custom']))
+    elements.append(Paragraph("4.4 Feature Engineering (GBR)", styles['Heading2Custom']))
+    elements.append(Paragraph(
+        "Model GBR menggunakan 9 features yang dikalkulasi dari data historis:",
+        styles['BodyCustom']
+    ))
+    
+    features_data = [
+        ['Feature', 'Deskripsi', 'Formula'],
+        ['lag_1', 'Curah hujan 1 hari sebelumnya', 'y[t-1]'],
+        ['lag_3', 'Curah hujan 3 hari sebelumnya', 'y[t-3]'],
+        ['lag_7', 'Curah hujan 7 hari sebelumnya', 'y[t-7]'],
+        ['roll_mean_3', 'Rata-rata 3 hari terakhir', 'mean(y[t-3:t])'],
+        ['roll_mean_7', 'Rata-rata 7 hari terakhir', 'mean(y[t-7:t])'],
+        ['roll_max_7', 'Maksimum 7 hari terakhir', 'max(y[t-7:t])'],
+        ['roll_std_7', 'Std dev 7 hari terakhir', 'std(y[t-7:t])'],
+        ['bulan_idx', 'Indeks bulan (1-12)', 'month(date)'],
+        ['day_of_week', 'Hari dalam minggu (0-6)', 'weekday(date)'],
+    ]
+    
+    features_table = Table(features_data, colWidths=[3*cm, 5*cm, 5*cm])
+    features_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), SECONDARY_COLOR),
+        ('TEXTCOLOR', (0, 0), (-1, 0), white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
+        ('FONTSIZE', (0, 0), (-1, -1), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#e2e8f0")),
+        ('PADDING', (0, 0), (-1, -1), 5),
+    ]))
+    
+    elements.append(features_table)
+    
+    elements.append(Paragraph("4.5 Recursive Forecasting", styles['Heading2Custom']))
     elements.append(Paragraph(
         "Untuk prediksi multi-step (lebih dari 1 hari), sistem menggunakan strategi recursive forecasting. "
         "Prediksi hari ke-n digunakan sebagai input untuk memprediksi hari ke-(n+1). "
         "Metode ini memungkinkan prediksi hingga 30 hari ke depan dari 7 hari data historis.",
         styles['BodyCustom']
     ))
-    
-    recursive_steps = [
-        "Input: 7 nilai historis terakhir [d₁, d₂, ..., d₇]",
-        "Prediksi d₈ menggunakan model",
-        "Update input menjadi [d₂, d₃, ..., d₇, d₈]",
-        "Prediksi d₉ menggunakan model",
-        "Ulangi hingga horizon tercapai (maks 30 hari)",
-    ]
-    
-    for i, step in enumerate(recursive_steps, 1):
-        elements.append(Paragraph(f"<b>Step {i}:</b> {step}", styles['BodyCustom']))
     
     elements.append(PageBreak())
     
@@ -671,75 +672,45 @@ def create_ml_section(styles):
     
     elements.append(Paragraph("5.1 Training Pipeline (Notebook)", styles['Heading2Custom']))
     elements.append(Paragraph(
-        "Model dilatih menggunakan Jupyter Notebook dengan file <font color='#6366f1'>notebook/prediksi_hujan.ipynb</font>. "
+        "Model dilatih menggunakan Jupyter Notebook (notebook/prediksi_hujan.ipynb). "
         "Berikut adalah tahapan training yang dilakukan:",
         styles['BodyCustom']
     ))
     
     training_steps = [
-        "Data Loading: Membaca dataset curah hujan harian dari file CSV",
-        "Feature Engineering: Membuat lag features, rolling statistics, dan seasonal features",
-        "Data Splitting: Membagi data menjadi train (80%) dan test (20%)",
-        "Model Training: Melatih GBR, LSTM, dan BiLSTM dengan hyperparameter tuning",
-        "Model Evaluation: Mengevaluasi performa dengan MAE, RMSE pada test set",
-        "ONNX Export: Mengekspor model ke format ONNX untuk deployment web",
+        "1. Data Loading: Membaca dataset curah hujan harian dari Excel",
+        "2. Feature Engineering: Membuat lag features, rolling statistics, time features",
+        "3. Data Splitting: Membagi data menjadi train (80%) dan test (20%)",
+        "4. Model Training: Melatih GBR, LSTM, dan BiLSTM",
+        "5. Model Evaluation: Mengevaluasi performa dengan MAE, RMSE",
+        "6. ONNX Export: Mengekspor model ke format ONNX untuk web deployment",
     ]
     
-    for i, step in enumerate(training_steps, 1):
-        elements.append(Paragraph(f"<b>{i}.</b> {step}", styles['BodyCustom']))
+    for step in training_steps:
+        elements.append(Paragraph(step, styles['BodyCustom']))
     
-    elements.append(Paragraph("5.2 Feature Engineering Details", styles['Heading2Custom']))
-    elements.append(Paragraph(
-        "Feature engineering adalah kunci untuk performa model GBR. Berikut adalah features yang digunakan:",
-        styles['BodyCustom']
-    ))
-    
-    features_data = [
-        ['Feature', 'Deskripsi', 'Formula/Metode'],
-        ['lag_1', 'Curah hujan 1 hari sebelumnya', 'y[t-1]'],
-        ['lag_3', 'Curah hujan 3 hari sebelumnya', 'y[t-3]'],
-        ['lag_7', 'Curah hujan 7 hari sebelumnya', 'y[t-7]'],
-        ['roll_mean_3', 'Rata-rata 3 hari terakhir', 'mean(y[t-3:t])'],
-        ['roll_mean_7', 'Rata-rata 7 hari terakhir', 'mean(y[t-7:t])'],
-        ['roll_max_7', 'Maksimum 7 hari terakhir', 'max(y[t-7:t])'],
-        ['bulan_idx', 'Indeks bulan (seasonality)', 'month(date) - 1'],
-    ]
-    
-    features_table = Table(features_data, colWidths=[3*cm, 5*cm, 5*cm])
-    features_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), SECONDARY_COLOR),
-        ('TEXTCOLOR', (0, 0), (-1, 0), white),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTNAME', (0, 1), (-1, -1), 'Helvetica'),
-        ('FONTSIZE', (0, 0), (-1, -1), 9),
-        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#e2e8f0")),
-        ('PADDING', (0, 0), (-1, -1), 6),
-    ]))
-    
-    elements.append(features_table)
-    
-    elements.append(Paragraph("5.3 ONNX Runtime Integration", styles['Heading2Custom']))
+    elements.append(Paragraph("5.2 ONNX Runtime Web", styles['Heading2Custom']))
     elements.append(Paragraph(
         "ONNX (Open Neural Network Exchange) digunakan sebagai format portable untuk deployment model. "
-        "Keuntungan menggunakan ONNX:",
+        "Model dijalankan di browser menggunakan onnxruntime-web dengan WASM backend.",
         styles['BodyCustom']
     ))
     
     onnx_benefits = [
-        "Cross-platform: Dapat dijalankan di berbagai environment (Python, Node.js, browser)",
-        "Optimized: Runtime yang dioptimasi untuk CPU inference",
-        "Lightweight: Ukuran model lebih kecil dibanding format asli",
-        "Serverless-friendly: Cocok untuk Vercel dan AWS Lambda",
+        "* Cross-platform: Dapat dijalankan di browser tanpa server",
+        "* Optimized: Runtime yang dioptimasi untuk CPU inference",
+        "* Lightweight: Ukuran model kecil (37KB - 200KB)",
+        "* Vercel-friendly: Tidak memerlukan server-side processing",
     ]
     
     for benefit in onnx_benefits:
-        elements.append(Paragraph(f"• {benefit}", styles['BodyCustom']))
+        elements.append(Paragraph(benefit, styles['BodyCustom']))
     
-    elements.append(Paragraph("5.4 Model Files", styles['Heading2Custom']))
+    elements.append(Paragraph("5.3 Model Files", styles['Heading2Custom']))
     
     model_files = [
         ['File', 'Size', 'Input Shape', 'Description'],
-        ['model_gbr.onnx', '200 KB', '[1, 7]', 'Gradient Boosting with 7 features'],
+        ['model_gbr.onnx', '200 KB', '[1, 9]', 'Gradient Boosting with 9 features'],
         ['model_lstm.onnx', '37 KB', '[1, 7, 1]', 'LSTM sequence model'],
         ['model_bilstm.onnx', '96 KB', '[1, 7, 1]', 'Bidirectional LSTM'],
     ]
@@ -767,90 +738,21 @@ def create_api_section(styles):
     
     elements.append(Paragraph("6.1 Regression API", styles['Heading2Custom']))
     
-    elements.append(Paragraph("<b>Endpoint:</b> <font color='#6366f1'>POST /api/regression</font>", styles['BodyCustom']))
+    elements.append(Paragraph("<b>Endpoint:</b> POST /api/regression", styles['BodyCustom']))
     elements.append(Paragraph("Melakukan analisis regresi pada data X-Y.", styles['BodyCustom']))
     
     elements.append(Paragraph("<b>Request Body:</b>", styles['BodyCustom']))
-    req_code = """
-{
-    "data": [
-        { "x": 33262.03, "y": 14.44 },
-        { "x": 48285.70, "y": 18.16 },
-        ...
-    ],
-    "type": "linear" | "polynomial" | "exponential" | 
-            "power" | "logarithmic" | "moving-average",
-    "degree": 2  // Optional, for polynomial (2-6) or MA window
-}
-"""
-    elements.append(Paragraph(f"<pre>{req_code}</pre>", styles['CodeCustom']))
     
-    elements.append(Paragraph("<b>Response:</b>", styles['BodyCustom']))
-    resp_code = """
-{
-    "type": "linear",
-    "formula": "y = 11.9707 + 0.0001x",
-    "coefficients": [11.9707, 0.0001],
-    "r2": 0.9624,
-    "mae": 0.6594,
-    "rmse": 0.7725,
-    "predictions": [14.32, 17.89, ...]
-}
-"""
-    elements.append(Paragraph(f"<pre>{resp_code}</pre>", styles['CodeCustom']))
-    
-    elements.append(Paragraph("6.2 Prediction API", styles['Heading2Custom']))
-    
-    elements.append(Paragraph("<b>Endpoint:</b> <font color='#6366f1'>POST /api/predict</font>", styles['BodyCustom']))
-    elements.append(Paragraph("Melakukan prediksi curah hujan menggunakan model ML.", styles['BodyCustom']))
-    
-    elements.append(Paragraph("<b>Request Body:</b>", styles['BodyCustom']))
-    pred_req = """
-{
-    "model": "gbr" | "lstm" | "bilstm",
-    "horizon": 7,  // 1-30 days
-    "historicalData": [
-        { "date": "2024-11-01", "value": 12.5 },
-        { "date": "2024-11-02", "value": 8.3 },
-        ...  // min 7 data points
-    ]
-}
-"""
-    elements.append(Paragraph(f"<pre>{pred_req}</pre>", styles['CodeCustom']))
-    
-    elements.append(Paragraph("<b>Response:</b>", styles['BodyCustom']))
-    pred_resp = """
-{
-    "success": true,
-    "model": {
-        "name": "Gradient Boosting Regressor",
-        "mae": 6.42,
-        "rmse": 11.28
-    },
-    "predictions": [
-        { "date": "2024-12-01", "value": 15.32 },
-        { "date": "2024-12-02", "value": 12.78 },
-        ...
-    ]
-}
-"""
-    elements.append(Paragraph(f"<pre>{pred_resp}</pre>", styles['CodeCustom']))
-    
-    elements.append(Paragraph("6.3 Error Handling", styles['Heading2Custom']))
-    
-    errors_data = [
-        ['Status Code', 'Error', 'Penyebab'],
-        ['400', 'Invalid request body', 'Body request tidak valid'],
-        ['400', 'At least 2 data points required', 'Data kurang dari minimum'],
-        ['400', 'Invalid regression type', 'Tipe regresi tidak dikenal'],
-        ['400', 'At least 7 historical data points', 'Data historis kurang untuk ML'],
-        ['500', 'Regression calculation failed', 'Error internal saat kalkulasi'],
-        ['500', 'Model inference failed', 'Error saat inferensi ONNX'],
+    req_data = [
+        ['Field', 'Type', 'Description'],
+        ['data', 'Array', 'Array of {x, y} objects'],
+        ['type', 'String', 'linear | polynomial | exponential | power | logarithmic | moving-average'],
+        ['degree', 'Number', 'Optional, for polynomial (2-6) or MA window'],
     ]
     
-    errors_table = Table(errors_data, colWidths=[2.5*cm, 5*cm, 6*cm])
-    errors_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), HexColor("#ef4444")),
+    req_table = Table(req_data, colWidths=[3*cm, 3*cm, 8*cm])
+    req_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), SECONDARY_COLOR),
         ('TEXTCOLOR', (0, 0), (-1, 0), white),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -858,76 +760,126 @@ def create_api_section(styles):
         ('PADDING', (0, 0), (-1, -1), 6),
     ]))
     
-    elements.append(errors_table)
+    elements.append(req_table)
+    
+    elements.append(Paragraph("<b>Response:</b>", styles['BodyCustom']))
+    
+    resp_data = [
+        ['Field', 'Type', 'Description'],
+        ['type', 'String', 'Regression type used'],
+        ['formula', 'String', 'Regression equation'],
+        ['coefficients', 'Array', 'Coefficient values'],
+        ['r2', 'Number', 'R-squared value (0-1)'],
+        ['mae', 'Number', 'Mean Absolute Error'],
+        ['rmse', 'Number', 'Root Mean Square Error'],
+        ['predictions', 'Array', 'Predicted Y values'],
+    ]
+    
+    resp_table = Table(resp_data, colWidths=[3*cm, 3*cm, 8*cm])
+    resp_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), SECONDARY_COLOR),
+        ('TEXTCOLOR', (0, 0), (-1, 0), white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#e2e8f0")),
+        ('PADDING', (0, 0), (-1, -1), 6),
+    ]))
+    
+    elements.append(resp_table)
+    
+    elements.append(Paragraph("6.2 Prediction (Client-Side)", styles['Heading2Custom']))
+    elements.append(Paragraph(
+        "Prediksi curah hujan dijalankan di browser menggunakan ONNX Runtime Web. "
+        "Tidak ada API call ke server untuk inferensi ML.",
+        styles['BodyCustom']
+    ))
+    
+    elements.append(Paragraph("<b>Function:</b> forecast(modelType, historicalData, horizonDays)", styles['BodyCustom']))
+    
+    pred_params = [
+        ['Parameter', 'Type', 'Description'],
+        ['modelType', 'String', 'gbr | lstm | bilstm'],
+        ['historicalData', 'Array', 'Array of {date, value} (min 7 points)'],
+        ['horizonDays', 'Number', 'Prediction horizon (1-30 days)'],
+    ]
+    
+    pred_table = Table(pred_params, colWidths=[3*cm, 3*cm, 8*cm])
+    pred_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), SECONDARY_COLOR),
+        ('TEXTCOLOR', (0, 0), (-1, 0), white),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#e2e8f0")),
+        ('PADDING', (0, 0), (-1, -1), 6),
+    ]))
+    
+    elements.append(pred_table)
+    
     elements.append(PageBreak())
     
     return elements
 
-def create_components_section(styles):
+def create_ui_section(styles):
     """Create UI components section"""
     elements = []
     
     elements.append(Paragraph("7. KOMPONEN UI", styles['Heading1Custom']))
     
-    elements.append(Paragraph("7.1 Daftar Komponen", styles['Heading2Custom']))
+    elements.append(Paragraph("7.1 Komponen Utama", styles['Heading2Custom']))
     
     components = [
         {
-            'name': 'Navbar',
-            'file': 'src/components/Navbar.tsx',
-            'desc': 'Navigation bar responsif dengan hamburger menu untuk mobile. Menampilkan logo, judul aplikasi, dan link ke halaman Beranda, Regresi, dan Prediksi.'
-        },
-        {
             'name': 'ChartComponent',
             'file': 'src/components/ChartComponent.tsx',
-            'desc': 'Wrapper untuk Chart.js yang mendukung scatter plot dan line chart. Menerima props untuk data, title, dan axis labels yang dapat dikustomisasi.'
+            'desc': 'Komponen grafik menggunakan Chart.js. Mendukung scatter, line, dan time series.'
         },
         {
             'name': 'DataTable',
             'file': 'src/components/DataTable.tsx',
-            'desc': 'Tabel interaktif untuk menampilkan dan mengedit data. Mendukung checkbox toggle untuk enable/disable data point dan input edit inline.'
+            'desc': 'Tabel data interaktif dengan kemampuan edit inline dan toggle enable/disable.'
         },
         {
             'name': 'CsvUploader',
             'file': 'src/components/CsvUploader.tsx',
-            'desc': 'Komponen upload file CSV dengan drag-and-drop. Mendukung dua mode: XY data (x,y columns) dan timeseries (date,value columns).'
+            'desc': 'Komponen upload CSV dengan validasi dan parsing otomatis.'
+        },
+        {
+            'name': 'Navbar',
+            'file': 'src/components/Navbar.tsx',
+            'desc': 'Navigation bar responsif dengan hamburger menu untuk mobile.'
         },
         {
             'name': 'Icon',
             'file': 'src/components/Icon.tsx',
-            'desc': 'Library SVG icons dengan 15+ icons termasuk home, chart-line, download, copy, rocket, dll. Ukuran dan warna dapat dikustomisasi.'
+            'desc': 'Koleksi SVG icons untuk UI (chart, upload, copy, download, dll).'
         },
     ]
     
     for comp in components:
         elements.append(Paragraph(f"<b>{comp['name']}</b>", styles['Heading3Custom']))
-        elements.append(Paragraph(f"<i>File:</i> <font color='#6366f1'>{comp['file']}</font>", styles['BodyCustom']))
+        elements.append(Paragraph(f"<i>File:</i> {comp['file']}", styles['BodyCustom']))
         elements.append(Paragraph(comp['desc'], styles['BodyCustom']))
     
     elements.append(Paragraph("7.2 Utility Libraries", styles['Heading2Custom']))
     
     libs = [
         {
-            'name': 'exportUtils.ts',
-            'desc': 'Fungsi untuk export chart sebagai PNG dan data sebagai CSV.',
-            'functions': ['exportChartAsPNG()', 'exportXYDataAsCSV()', 'exportTimeSeriesAsCSV()']
-        },
-        {
             'name': 'regression.ts',
-            'desc': 'Implementasi algoritma regresi (6 metode) dengan kalkulasi metrik.',
-            'functions': ['linearRegression()', 'polynomialRegression()', 'exponentialRegression()', 'powerRegression()', 'logarithmicRegression()', 'movingAverageRegression()']
+            'desc': 'Implementasi 6 algoritma regresi dan kalkulasi metrik (R2, MAE, RMSE).'
         },
         {
-            'name': 'onnxLoader.ts',
-            'desc': 'ONNX model loader dengan singleton pattern dan feature preparation.',
-            'functions': ['getOnnxSession()', 'runModelInference()', 'recursiveForecast()', 'prepareGBRFeatures()', 'prepareLSTMFeatures()']
+            'name': 'onnxWebInference.ts',
+            'desc': 'Loading dan inferensi model ONNX di browser dengan feature preparation.'
+        },
+        {
+            'name': 'exportUtils.ts',
+            'desc': 'Fungsi export chart ke PNG dan data ke CSV.'
         },
     ]
     
     for lib in libs:
         elements.append(Paragraph(f"<b>{lib['name']}</b>", styles['Heading3Custom']))
         elements.append(Paragraph(lib['desc'], styles['BodyCustom']))
-        elements.append(Paragraph("<i>Functions:</i> " + ", ".join([f"<font color='#6366f1'>{f}</font>" for f in lib['functions']]), styles['BodyCustom']))
     
     elements.append(PageBreak())
     
@@ -942,11 +894,11 @@ def create_usage_section(styles):
     elements.append(Paragraph("8.1 Modul Regresi", styles['Heading2Custom']))
     
     regression_steps = [
-        ("Input Data", "Upload file CSV dengan kolom X dan Y, atau input data secara manual melalui tabel. Gunakan checkbox untuk enable/disable data point tertentu."),
-        ("Pilih Metode", "Pilih metode regresi dari dropdown: Linear, Polynomial (degree 2-6), Exponential, Power, Logarithmic, atau Moving Average."),
-        ("Visualisasi", "Grafik akan otomatis terupdate menampilkan scatter plot data dan garis/kurva regresi."),
-        ("Hasil", "Lihat formula regresi, nilai R², MAE, dan RMSE. Gunakan tombol Copy untuk menyalin formula."),
-        ("Export", "Klik 'Export PNG' untuk download grafik atau 'Export Data CSV' untuk download data."),
+        ("Input Data", "Upload file CSV dengan kolom x,y atau input manual di tabel."),
+        ("Pilih Metode", "Pilih metode regresi: Linear, Polynomial, Exponential, Power, Logarithmic, atau Moving Average."),
+        ("Lihat Hasil", "Grafik akan menampilkan data points dan garis/kurva regresi."),
+        ("Salin Formula", "Klik tombol copy untuk menyalin formula ke clipboard."),
+        ("Export", "Export grafik sebagai PNG atau data sebagai CSV."),
     ]
     
     for i, (title, desc) in enumerate(regression_steps, 1):
@@ -956,12 +908,12 @@ def create_usage_section(styles):
     elements.append(Paragraph("8.2 Modul Prediksi", styles['Heading2Custom']))
     
     prediction_steps = [
-        ("Input Data Historis", "Upload file CSV dengan kolom date dan value, atau input manual. Minimum 7 data point diperlukan."),
-        ("Pilih Model", "Pilih model ML: Gradient Boosting (tercepat, akurasi bagus), LSTM (deep learning), atau BiLSTM (bidirectional)."),
-        ("Set Horizon", "Tentukan berapa hari ke depan yang ingin diprediksi (1-30 hari) menggunakan slider."),
-        ("Jalankan Prediksi", "Klik tombol 'Jalankan Prediksi' untuk memulai inferensi model."),
-        ("Lihat Hasil", "Grafik akan menampilkan data historis dan prediksi. Tabel 'Hasil Prediksi' menampilkan nilai prediksi per hari."),
-        ("Export", "Export grafik sebagai PNG atau data lengkap (historis + prediksi) sebagai CSV."),
+        ("Input Data Historis", "Upload CSV dengan kolom date,value atau input manual. Minimum 7 data point."),
+        ("Pilih Model", "Pilih model ML: Gradient Boosting, LSTM, atau BiLSTM."),
+        ("Set Horizon", "Tentukan berapa hari ke depan yang ingin diprediksi (1-30 hari)."),
+        ("Jalankan Prediksi", "Klik tombol 'Jalankan Prediksi' untuk memulai inferensi."),
+        ("Lihat Hasil", "Grafik menampilkan data historis dan prediksi. Tabel menampilkan nilai prediksi."),
+        ("Export", "Export grafik sebagai PNG atau data (historis + prediksi) sebagai CSV."),
     ]
     
     for i, (title, desc) in enumerate(prediction_steps, 1):
@@ -971,22 +923,41 @@ def create_usage_section(styles):
     elements.append(Paragraph("8.3 Format File CSV", styles['Heading2Custom']))
     
     elements.append(Paragraph("<b>Untuk Modul Regresi (XY Data):</b>", styles['BodyCustom']))
-    csv_xy = """
-x,y
-33262.03,14.44
-48285.70,18.16
-68609.89,21.55
-"""
-    elements.append(Paragraph(f"<pre>{csv_xy}</pre>", styles['CodeCustom']))
     
+    csv_xy_data = [
+        ['x', 'y'],
+        ['33262.03', '14.44'],
+        ['48285.70', '18.16'],
+        ['68609.89', '21.55'],
+    ]
+    csv_table1 = Table(csv_xy_data, colWidths=[5*cm, 5*cm])
+    csv_table1.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), HexColor("#e2e8f0")),
+        ('FONTNAME', (0, 0), (-1, -1), 'Courier'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#cbd5e1")),
+        ('PADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(csv_table1)
+    
+    elements.append(Spacer(1, 0.5*cm))
     elements.append(Paragraph("<b>Untuk Modul Prediksi (Time Series):</b>", styles['BodyCustom']))
-    csv_ts = """
-date,value
-2024-11-01,12.5
-2024-11-02,8.3
-2024-11-03,0
-"""
-    elements.append(Paragraph(f"<pre>{csv_ts}</pre>", styles['CodeCustom']))
+    
+    csv_ts_data = [
+        ['date', 'value'],
+        ['2024-11-01', '0.5'],
+        ['2024-11-02', '1.2'],
+        ['2024-11-03', '2.8'],
+    ]
+    csv_table2 = Table(csv_ts_data, colWidths=[5*cm, 5*cm])
+    csv_table2.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), HexColor("#e2e8f0")),
+        ('FONTNAME', (0, 0), (-1, -1), 'Courier'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('GRID', (0, 0), (-1, -1), 0.5, HexColor("#cbd5e1")),
+        ('PADDING', (0, 0), (-1, -1), 6),
+    ]))
+    elements.append(csv_table2)
     
     elements.append(PageBreak())
     
@@ -1000,69 +971,56 @@ def create_deployment_section(styles):
     
     elements.append(Paragraph("9.1 Prerequisites", styles['Heading2Custom']))
     
-    prereqs = [
-        "Node.js v18.x atau lebih tinggi",
-        "npm v10.x atau pnpm",
-        "Git untuk version control",
-        "Akun Vercel (opsional, untuk deployment)",
+    prereq = [
+        "* Node.js 18 atau lebih baru",
+        "* npm 10 atau lebih baru",
+        "* Git",
+        "* Akun Vercel (untuk deployment)",
     ]
     
-    for prereq in prereqs:
-        elements.append(Paragraph(f"• {prereq}", styles['BodyCustom']))
+    for p in prereq:
+        elements.append(Paragraph(p, styles['BodyCustom']))
     
     elements.append(Paragraph("9.2 Local Development", styles['Heading2Custom']))
     
-    local_steps = """
-# Clone repository
-git clone <repository-url>
-cd webapp
-
-# Install dependencies
-npm install
-
-# Run development server
-npm run dev
-
-# Open browser at http://localhost:3000
-"""
-    elements.append(Paragraph(f"<pre>{local_steps}</pre>", styles['CodeCustom']))
+    local_steps = [
+        "1. Clone repository: git clone [repo-url]",
+        "2. Install dependencies: npm install",
+        "3. Run development server: npm run dev",
+        "4. Open browser: http://localhost:3000",
+    ]
+    
+    for step in local_steps:
+        elements.append(Paragraph(step, styles['BodyCustom']))
     
     elements.append(Paragraph("9.3 Build Production", styles['Heading2Custom']))
     
-    build_steps = """
-# Build for production
-npm run build
-
-# Start production server (local)
-npm start
-
-# Check build output
-# Route (app)
-# ├ ○ /             (Static)
-# ├ ƒ /api/predict  (Dynamic - serverless)
-# ├ ƒ /api/regression (Dynamic - serverless)
-# ├ ○ /prediction   (Static)
-# └ ○ /regression   (Static)
-"""
-    elements.append(Paragraph(f"<pre>{build_steps}</pre>", styles['CodeCustom']))
+    build_steps = [
+        "1. Build: npm run build",
+        "2. Start production server: npm start",
+        "3. Atau deploy ke Vercel",
+    ]
+    
+    for step in build_steps:
+        elements.append(Paragraph(step, styles['BodyCustom']))
     
     elements.append(Paragraph("9.4 Deploy to Vercel", styles['Heading2Custom']))
     
     vercel_steps = [
-        "Push code ke GitHub repository",
-        "Login ke Vercel dan import project dari GitHub",
-        "Vercel akan otomatis mendeteksi Next.js",
-        "Klik Deploy dan tunggu build selesai",
-        "Akses aplikasi di URL yang diberikan Vercel",
+        "1. Push code ke GitHub repository",
+        "2. Login ke Vercel (vercel.com)",
+        "3. Import project dari GitHub",
+        "4. Klik Deploy",
+        "5. Vercel akan otomatis build dan deploy",
     ]
     
-    for i, step in enumerate(vercel_steps, 1):
-        elements.append(Paragraph(f"<b>{i}.</b> {step}", styles['BodyCustom']))
+    for step in vercel_steps:
+        elements.append(Paragraph(step, styles['BodyCustom']))
     
     elements.append(Paragraph("9.5 Environment Variables", styles['Heading2Custom']))
     elements.append(Paragraph(
-        "Aplikasi ini tidak memerlukan environment variables khusus. Semua konfigurasi "
-        "sudah hardcoded untuk kesederhanaan. Jika perlu, tambahkan di Vercel dashboard.",
+        "Tidak ada environment variables yang diperlukan untuk deployment standar. "
+        "Semua konfigurasi sudah di-hardcode untuk simplicity.",
         styles['BodyCustom']
     ))
     
@@ -1076,61 +1034,51 @@ def create_troubleshooting_section(styles):
     
     elements.append(Paragraph("10. TROUBLESHOOTING", styles['Heading1Custom']))
     
+    elements.append(Paragraph("10.1 Common Issues", styles['Heading2Custom']))
+    
     issues = [
         {
-            'problem': 'Error: Model file not found',
-            'cause': 'File ONNX tidak ada di folder public/models',
-            'solution': 'Pastikan file model_gbr.onnx, model_lstm.onnx, dan model_bilstm.onnx ada di public/models/'
+            'problem': 'Model tidak load / ONNX error',
+            'solution': 'Pastikan file model ada di folder public/models/. Refresh browser dengan Ctrl+Shift+R.'
         },
         {
-            'problem': 'Prediksi menghasilkan nilai negatif',
-            'cause': 'Model output belum di-clamp',
-            'solution': 'Sistem sudah menghandle ini dengan Math.max(0, prediction). Jika masih terjadi, cek preprocessing data.'
+            'problem': 'Prediksi selalu sama (~5-6mm)',
+            'solution': 'Ini normal untuk model yang ditraining dengan data range 0-11mm. Gunakan data input sesuai range.'
         },
         {
             'problem': 'Chart tidak muncul',
-            'cause': 'SSR issue dengan Chart.js',
-            'solution': 'ChartComponent sudah menggunakan dynamic import dengan ssr: false. Pastikan react-chartjs-2 terinstall.'
+            'solution': 'Pastikan minimal ada 2 data point (regresi) atau 7 data point (prediksi).'
         },
         {
-            'problem': 'CSV upload tidak terbaca',
-            'cause': 'Format CSV tidak sesuai',
-            'solution': 'Pastikan CSV memiliki header (x,y atau date,value) dan separator koma. Encoding harus UTF-8.'
+            'problem': 'CSV upload gagal',
+            'solution': 'Pastikan format CSV benar: header di baris pertama, kolom sesuai (x,y atau date,value).'
         },
         {
-            'problem': 'Build error: Cannot find module onnxruntime-node',
-            'cause': 'Dependency belum terinstall',
-            'solution': 'Jalankan npm install onnxruntime-node. Pastikan Node.js versi 18+.'
-        },
-        {
-            'problem': 'Regresi menghasilkan NaN/Infinity',
-            'cause': 'Data tidak valid untuk metode tertentu',
-            'solution': 'Exponential/Power regression membutuhkan y > 0. Logarithmic membutuhkan x > 0. Filter data terlebih dahulu.'
+            'problem': 'Warning CPU vendor unknown',
+            'solution': 'Ini hanya warning, tidak mempengaruhi fungsi. ONNX tetap berjalan dengan WASM backend.'
         },
     ]
     
     for issue in issues:
-        elements.append(Paragraph(f"<b>Problem:</b> {issue['problem']}", styles['Heading3Custom']))
-        elements.append(Paragraph(f"<i>Penyebab:</i> {issue['cause']}", styles['BodyCustom']))
-        elements.append(Paragraph(f"<i>Solusi:</i> {issue['solution']}", styles['BodyCustom']))
+        elements.append(Paragraph(f"<b>Problem:</b> {issue['problem']}", styles['BodyCustom']))
+        elements.append(Paragraph(f"<b>Solution:</b> {issue['solution']}", styles['BodyCustom']))
+        elements.append(Spacer(1, 0.3*cm))
     
-    elements.append(Spacer(1, 1*cm))
-    
-    elements.append(Paragraph("KONTAK SUPPORT", styles['Heading2Custom']))
+    elements.append(Paragraph("10.2 Contact Support", styles['Heading2Custom']))
     elements.append(Paragraph(
         "Jika mengalami masalah yang tidak tercantum di atas, silakan hubungi:",
         styles['BodyCustom']
     ))
     
     contact_data = [
-        ['Platform', 'Kontak'],
+        ['Platform', 'Contact'],
         ['WhatsApp', CONTACT_INFO['wa']],
         ['Instagram', CONTACT_INFO['ig']],
         ['Website', CONTACT_INFO['website']],
         ['Fastwork', CONTACT_INFO['fastwork']],
     ]
     
-    contact_table = Table(contact_data, colWidths=[4*cm, 9*cm])
+    contact_table = Table(contact_data, colWidths=[4*cm, 8*cm])
     contact_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), PRIMARY_COLOR),
         ('TEXTCOLOR', (0, 0), (-1, 0), white),
@@ -1142,19 +1090,6 @@ def create_troubleshooting_section(styles):
     
     elements.append(contact_table)
     
-    elements.append(Spacer(1, 2*cm))
-    
-    # Final thank you
-    elements.append(Paragraph(
-        "<font color='#6366f1' size='14'><b>Terima kasih telah menggunakan Sistem Analisis Curah Hujan!</b></font>",
-        ParagraphStyle(name='ThankYou', alignment=TA_CENTER, spaceAfter=12)
-    ))
-    
-    elements.append(Paragraph(
-        f"<font color='#64748b' size='10'>Dokumentasi ini dibuat pada {datetime.now().strftime('%d %B %Y %H:%M')}</font>",
-        ParagraphStyle(name='Date', alignment=TA_CENTER)
-    ))
-    
     return elements
 
 def generate_pdf():
@@ -1165,16 +1100,19 @@ def generate_pdf():
     doc = SimpleDocTemplate(
         OUTPUT_PDF,
         pagesize=A4,
-        leftMargin=2*cm,
         rightMargin=2*cm,
+        leftMargin=2*cm,
         topMargin=2*cm,
         bottomMargin=2*cm
     )
     
+    # Create styles
     styles = create_styles()
-    elements = []
     
     # Build content
+    elements = []
+    
+    # Add sections
     elements.extend(create_cover_page(styles))
     elements.extend(create_toc(styles))
     elements.extend(create_intro_section(styles))
@@ -1183,7 +1121,7 @@ def generate_pdf():
     elements.extend(create_prediction_section(styles))
     elements.extend(create_ml_section(styles))
     elements.extend(create_api_section(styles))
-    elements.extend(create_components_section(styles))
+    elements.extend(create_ui_section(styles))
     elements.extend(create_usage_section(styles))
     elements.extend(create_deployment_section(styles))
     elements.extend(create_troubleshooting_section(styles))
@@ -1192,7 +1130,6 @@ def generate_pdf():
     doc.build(elements, onFirstPage=create_header_footer, onLaterPages=create_header_footer)
     
     print(f"PDF generated successfully: {OUTPUT_PDF}")
-    return OUTPUT_PDF
 
 if __name__ == "__main__":
     generate_pdf()

@@ -22,7 +22,7 @@ export interface RegressionResult {
 }
 
 // Model types for prediction
-export type ModelType = 'gbr' | 'lstm' | 'bilstm';
+export type ModelType = 'gbr' | 'xgb' | 'lstm' | 'bilstm' | 'hybrid';
 
 // Model metadata info
 export interface ModelInfo {

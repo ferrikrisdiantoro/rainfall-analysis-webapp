@@ -54,6 +54,8 @@ export default function RegressionPage() {
     const [chartTitle, setChartTitle] = useState('Scatter Plot dengan Regression Curve');
     const [xLabel, setXLabel] = useState('X (Flow)');
     const [yLabel, setYLabel] = useState('Y (Water Level)');
+    const [dataPointsLabel, setDataPointsLabel] = useState('Data Points');
+    const [regressionFitLabel, setRegressionFitLabel] = useState('Regression Fit');
 
     // Perform regression when data or settings change
     const performRegression = useCallback(async () => {
@@ -132,7 +134,7 @@ export default function RegressionPage() {
         datasets: [
             {
                 type: 'scatter' as const,
-                label: 'Data Points',
+                label: dataPointsLabel,
                 data: activeData.map((p) => ({ x: p.x, y: p.y })),
                 backgroundColor: 'rgba(99, 102, 241, 0.9)',
                 borderColor: 'rgba(79, 70, 229, 1)',
@@ -142,7 +144,7 @@ export default function RegressionPage() {
             ...(result
                 ? [{
                     type: 'line' as const,
-                    label: `${regressionType.charAt(0).toUpperCase() + regressionType.slice(1)} Fit`,
+                    label: regressionFitLabel,
                     data: activeData.map((p, i) => ({ x: p.x, y: result.predictions[i] })),
                     borderColor: 'rgba(139, 92, 246, 1)',
                     backgroundColor: 'rgba(139, 92, 246, 0.1)',
@@ -150,6 +152,7 @@ export default function RegressionPage() {
                     fill: true,
                     tension: regressionType === 'linear' ? 0 : 0.4,
                     pointRadius: 0,
+                    pointStyle: 'line' as const,
                 }]
                 : []),
         ],
@@ -239,6 +242,30 @@ export default function RegressionPage() {
                                         value={yLabel}
                                         onChange={(e) => setYLabel(e.target.value)}
                                         placeholder="Y"
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                                <div className="form-group">
+                                    <label className="label">LABEL DATA POINTS</label>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        value={dataPointsLabel}
+                                        onChange={(e) => setDataPointsLabel(e.target.value)}
+                                        placeholder="Data Points"
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="label">LABEL REGRESSION FIT</label>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        value={regressionFitLabel}
+                                        onChange={(e) => setRegressionFitLabel(e.target.value)}
+                                        placeholder="Regression Fit"
                                         style={{ width: '100%' }}
                                     />
                                 </div>

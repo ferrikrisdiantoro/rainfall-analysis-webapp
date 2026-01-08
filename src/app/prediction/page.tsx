@@ -29,8 +29,10 @@ const ChartComponent = dynamic(() => import('@/components/ChartComponent'), {
 // Model options with display info
 const MODEL_OPTIONS: { value: ModelType; label: string; description: string }[] = [
     { value: 'gbr', label: 'Gradient Boosting', description: 'Tabular ML dengan fitur lag & rolling stats' },
+    { value: 'xgb', label: 'XGBoost', description: 'Extreme Gradient Boosting - akurasi tinggi' },
     { value: 'lstm', label: 'LSTM', description: 'Deep Learning sequence model' },
     { value: 'bilstm', label: 'BiLSTM', description: 'Bidirectional LSTM untuk pola kompleks' },
+    { value: 'hybrid', label: 'Hybrid XGB+LSTM', description: 'Ensemble model XGBoost + LSTM (rekomendasi)' },
 ];
 
 // Extended data point with enabled toggle
@@ -85,6 +87,8 @@ export default function PredictionPage() {
     const [chartTitle, setChartTitle] = useState('Data Historis & Prediksi Curah Hujan');
     const [xLabel, setXLabel] = useState('Tanggal');
     const [yLabel, setYLabel] = useState('Curah Hujan (mm)');
+    const [historicalLabel, setHistoricalLabel] = useState('Data Historis');
+    const [predictionLabel, setPredictionLabel] = useState('Prediksi');
 
     // Manual data input
     const [manualDate, setManualDate] = useState('');
@@ -193,7 +197,7 @@ export default function PredictionPage() {
         ],
         datasets: [
             {
-                label: 'Data Historis',
+                label: historicalLabel,
                 data: [
                     ...activeHistorical.map(d => d.value),
                     ...predictions.map(() => null),
@@ -208,18 +212,18 @@ export default function PredictionPage() {
                 pointBorderWidth: 2,
             },
             {
-                label: 'Prediksi',
+                label: predictionLabel,
                 data: [
                     ...activeHistorical.map(() => null),
                     ...predictions.map(d => d.value),
                 ],
-                borderColor: 'rgba(139, 92, 246, 1)',
-                backgroundColor: 'rgba(139, 92, 246, 0.1)',
+                borderColor: 'rgba(249, 115, 22, 1)',
+                backgroundColor: 'rgba(249, 115, 22, 0.1)',
                 fill: true,
                 borderDash: [5, 5],
                 tension: 0.3,
                 pointRadius: 5,
-                pointBackgroundColor: 'rgba(139, 92, 246, 1)',
+                pointBackgroundColor: 'rgba(249, 115, 22, 1)',
                 pointBorderColor: '#fff',
                 pointBorderWidth: 2,
                 borderWidth: 3,
@@ -389,6 +393,30 @@ export default function PredictionPage() {
                                         value={yLabel}
                                         onChange={(e) => setYLabel(e.target.value)}
                                         placeholder="Y"
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                            </div>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginTop: '12px' }}>
+                                <div className="form-group">
+                                    <label className="label">LABEL DATA HISTORIS</label>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        value={historicalLabel}
+                                        onChange={(e) => setHistoricalLabel(e.target.value)}
+                                        placeholder="Data Historis"
+                                        style={{ width: '100%' }}
+                                    />
+                                </div>
+                                <div className="form-group">
+                                    <label className="label">LABEL PREDIKSI</label>
+                                    <input
+                                        type="text"
+                                        className="input"
+                                        value={predictionLabel}
+                                        onChange={(e) => setPredictionLabel(e.target.value)}
+                                        placeholder="Prediksi"
                                         style={{ width: '100%' }}
                                     />
                                 </div>

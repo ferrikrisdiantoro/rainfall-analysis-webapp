@@ -88,19 +88,27 @@ export async function POST(request: NextRequest): Promise<NextResponse<Regressio
         }
 
         // Validate polynomial degree if applicable
-        let polynomialDegree = 2;
+        let regressionDegree = 2;
         if (type === 'polynomial' && degree !== undefined) {
-            polynomialDegree = Number(degree);
-            if (isNaN(polynomialDegree) || polynomialDegree < 1 || polynomialDegree > 10) {
+            regressionDegree = Number(degree);
+            if (isNaN(regressionDegree) || regressionDegree < 1 || regressionDegree > 10) {
                 return NextResponse.json(
                     { error: 'Polynomial degree must be between 1 and 10' },
+                    { status: 400 }
+                );
+            }
+        } else if (type === 'moving-average' && degree !== undefined) {
+            regressionDegree = Number(degree);
+            if (isNaN(regressionDegree) || regressionDegree < 2 || regressionDegree > 20) {
+                return NextResponse.json(
+                    { error: 'Moving average window size must be between 2 and 20' },
                     { status: 400 }
                 );
             }
         }
 
         // Perform regression
-        const result = performRegression(validatedData, type, polynomialDegree);
+        const result = performRegression(validatedData, type, regressionDegree);
 
         return NextResponse.json(result);
 
